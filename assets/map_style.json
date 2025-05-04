@@ -1,0 +1,286 @@
+[
+  {
+    "types": "polygon",
+    "tags": { "all": ["water"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#3a7bd5"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["park"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["land"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#e6f0fa"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "any": ["road_3", "road_4"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#8f82ab",
+      "scale": 1.2
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "any": ["road_5", "road_6", "road_7"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#7d9bbf"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["road_minor"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["path"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#b3c6e7",
+      "scale": 0.8
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["urban_area"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#d0e2f7"
+    }
+  },
+  {
+    "types": "point",
+    "tags": { "all": ["poi"] },
+    "elements": "label.icon",
+    "stylers": {
+      "color": "#1e3c72"
+    }
+  },
+  {
+    "types": "point",
+    "tags": { "all": ["poi"] },
+    "elements": "label.text.fill",
+    "stylers": {
+      "color": "#1e3c72"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["cemetery"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#a3bde3"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["parking"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#c6d6ee"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["national_park"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#8bb3e6"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["ferry"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#3a7bd5",
+      "scale": 1.1
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["crosswalk"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["beach"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#e6f0fa"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["industrial"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["residential"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#d0e2f7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["medical"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["sports_ground"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#a3bde3"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["construction_site"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["terrain"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#e6f0fa"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["vegetation"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#c6d6ee"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["landcover"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#e6f0fa"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["park"] },
+    "elements": "geometry.outline",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["road_construction"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#b3c6e7",
+      "scale": 1.1
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["road_limited"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["road_unclassified"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["road_minor"] },
+    "elements": "geometry",
+    "stylers": {
+      "color": "#c6d6ee"
+    }
+  },
+  {
+    "types": "polyline",
+    "tags": { "all": ["traffic_light"] },
+    "elements": "label.icon",
+    "stylers": {
+      "color": "#1e3c72"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["building"] },
+    "elements": "geometry.fill",
+    "stylers": {
+      "color": "#e6f0fa"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["building"] },
+    "elements": "geometry.outline",
+    "stylers": {
+      "color": "#b3c6e7"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["parking"] },
+    "elements": "geometry.outline",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["cemetery"] },
+    "elements": "geometry.outline",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  },
+  {
+    "types": "polygon",
+    "tags": { "all": ["national_park"] },
+    "elements": "geometry.outline",
+    "stylers": {
+      "color": "#7fa6d9"
+    }
+  }
+]

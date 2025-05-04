@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "C:\\Program Files\\flutter\\packages\\flutter_tools\\gradle\\src\\main\\groovy\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\ecl1pse\\_dev\\Android_Studio\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "E:\\study\\flutter_SportYugra\\sportyugra\\android\\app\\.cxx\\Debug\\4x6s462h\\x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\ecl1pse\\_dev\\Android_Studio\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "E:\\study\\flutter_SportYugra\\sportyugra\\android\\app\\.cxx\\Debug\\4x6s462h\\x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}
