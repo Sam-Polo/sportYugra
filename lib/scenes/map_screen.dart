@@ -1,13 +1,17 @@
-// map screen:
+import 'dart:developer' as dev;
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart' as fm;
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:yandex_maps_mapkit/mapkit.dart';
 import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/image.dart';
-import 'dart:developer' as dev;
 import '../data/placemarks.dart';
-import 'package:permission_handler/permission_handler.dart';
+import '../camera/camera_manager.dart';
+import '../permissions/permission_manager.dart';
+import '../widgets/map_control_button.dart';
 
 class MapScreen extends fm.StatefulWidget {
   const MapScreen({super.key});
@@ -17,10 +21,14 @@ class MapScreen extends fm.StatefulWidget {
 }
 
 class _MapScreenState extends fm.State<MapScreen>
-    with fm.WidgetsBindingObserver {
+    with fm.WidgetsBindingObserver
+    implements UserLocationObjectListener {
   MapWindow? _mapWindow;
   String? _mapStyle;
   UserLocationLayer? _userLocationLayer;
+  LocationManager? _locationManager;
+  CameraManager? _cameraManager;
+  late final _permissionManager = const PermissionManager();
 
   @override
   void initState() {
@@ -28,16 +36,24 @@ class _MapScreenState extends fm.State<MapScreen>
     fm.WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
     _requestLocationPermission();
-    print('MapKit onStart');
+    dev.log('MapKit onStart');
     mapkit.onStart();
   }
 
   @override
   void dispose() {
     fm.WidgetsBinding.instance.removeObserver(this);
-    print('MapKit onStop');
+    _cameraManager?.dispose();
+    dev.log('MapKit onStop');
     mapkit.onStop();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(fm.AppLifecycleState state) {
+    if (state == fm.AppLifecycleState.resumed) {
+      _requestLocationPermission();
+    }
   }
 
   Future<void> _loadMapStyle() async {
@@ -54,107 +70,34 @@ class _MapScreenState extends fm.State<MapScreen>
   }
 
   Future<void> _requestLocationPermission() async {
-    final status = await Permission.location.request();
-    if (status.isGranted) {
-      print('[log] Location permission granted');
-      // Инициализируем слой геолокации только после получения разрешения
-      if (_mapWindow != null) {
-        await _initUserLocation();
-      }
-    } else {
-      print('[log] Location permission denied');
-    }
+    final permissions = [PermissionType.accessLocation];
+    await _permissionManager.tryToRequest(permissions);
+    await _permissionManager.showRequestDialog(permissions);
   }
 
-  Future<void> _initUserLocation() async {
+  void _initUserLocation() {
     if (_mapWindow == null) return;
 
-    try {
-      final locationLayer = await mapkit.createUserLocationLayer(_mapWindow!);
-      setState(() {
-        _userLocationLayer = locationLayer;
-      });
+    _userLocationLayer = mapkit.createUserLocationLayer(_mapWindow!)
+      ..setVisible(true)
+      ..setObjectListener(this);
+    dev.log('UserLocationLayer initialized and listener set');
 
-      // Включаем отображение местоположения пользователя
-      _userLocationLayer?.setVisible(true);
-
-      dev.log('User location layer initialized');
-    } catch (e) {
-      dev.log('Error initializing user location: $e');
-    }
-  }
-
-  void _moveToUserLocation() {
-    if (_userLocationLayer == null) {
-      dev.log('User location layer is not initialized');
-      return;
-    }
-    final position = _userLocationLayer?.cameraPosition();
-    if (position != null) {
-      final cameraCallback = MapCameraCallback(onMoveFinished: (isFinished) {
-        if (isFinished) {
-          dev.log('Camera movement completed');
-        } else {
-          dev.log('Camera movement interrupted');
-        }
-      });
-      final newPosition = CameraPosition(
-        position.target,
-        zoom: 16,
-        azimuth: position.azimuth,
-        tilt: position.tilt,
-      );
-      _mapWindow?.map.moveWithAnimation(
-        newPosition,
-        const Animation(AnimationType.Linear, duration: 0.7),
-        cameraCallback: cameraCallback,
-      );
-      dev.log('Moving to user location with zoom 15');
-    } else {
-      dev.log('User location is not available');
-    }
+    _locationManager = mapkit.createLocationManager();
+    _cameraManager = CameraManager(_mapWindow!, _locationManager!)..start();
   }
 
   void _addPlacemarks() {
     if (_mapWindow == null) return;
-
     for (final placemark in placemarks) {
-      final mapPlacemark = _mapWindow!.map.mapObjects.addPlacemark()
+      _mapWindow!.map.mapObjects.addPlacemark()
         ..geometry = placemark.location
         ..setText(placemark.name)
-        ..setTextStyle(
-          const TextStyle(
-            size: 12.0,
-            color: fm.Colors.black,
-            outlineColor: fm.Colors.white,
-            placement: TextStylePlacement.Right,
-            offset: 5.0,
-          ),
-        )
-        ..setIcon(
-          ImageProvider.fromImageProvider(
-            const fm.AssetImage("assets/images/Yandex_Maps_icon.png"),
-          ),
-        )
-        ..setIconStyle(
-          const IconStyle(
-            scale: 0.1,
-          ),
-        );
-    }
-  }
-
-  void _logUserLocation() {
-    if (_userLocationLayer == null) {
-      dev.log('User location layer is not initialized');
-      return;
-    }
-    final position = _userLocationLayer?.cameraPosition();
-    if (position != null) {
-      dev.log(
-          'User location: lat: ${position.target.latitude} long: ${position.target.longitude}');
-    } else {
-      dev.log('User location is not available');
+        ..setTextStyle(const TextStyle(
+            size: 12.0, color: fm.Colors.black, outlineColor: fm.Colors.white))
+        ..setIcon(ImageProvider.fromImageProvider(
+            const fm.AssetImage("assets/images/Yandex_Maps_icon.png")))
+        ..setIconStyle(const IconStyle(scale: 0.1));
     }
   }
 
@@ -165,68 +108,80 @@ class _MapScreenState extends fm.State<MapScreen>
         children: [
           YandexMap(
             onMapCreated: (mapWindow) {
-              print('Map created: $mapWindow');
               _mapWindow = mapWindow;
 
               if (_mapStyle != null) {
                 _mapWindow?.map.setMapStyle(_mapStyle!);
-                print('Map style applied');
               }
 
-              try {
-                _mapWindow?.map.move(
-                  CameraPosition(
-                    Point(latitude: 60.988094, longitude: 69.037551),
-                    zoom: 12.7,
-                    azimuth: 0.0,
-                    tilt: 17.0,
-                  ),
-                );
-                print('Camera placed');
+              _mapWindow?.map.move(
+                CameraPosition(
+                  Point(latitude: 60.988094, longitude: 69.037551),
+                  zoom: 12.7,
+                  azimuth: 0.0,
+                  tilt: 17.0,
+                ),
+              );
 
-                // Инициализируем слой местоположения только если есть разрешение
-                Permission.location.isGranted.then((isGranted) {
-                  if (isGranted) {
-                    _initUserLocation();
-                  }
-                });
-
-                // Добавляем метки после инициализации карты
-                _addPlacemarks();
-              } catch (e) {
-                print('Error moving camera: $e');
-              }
+              _addPlacemarks();
+              Permission.location.isGranted.then((isGranted) {
+                if (isGranted) {
+                  _initUserLocation();
+                }
+              });
             },
           ),
           fm.Positioned(
             right: 16,
             bottom: 16,
-            child: fm.Material(
-              color: fm.Colors.black,
-              borderRadius: fm.BorderRadius.circular(8),
-              elevation: 4,
-              child: fm.InkWell(
-                borderRadius: fm.BorderRadius.circular(8),
-                onTap: _moveToUserLocation,
-                child: fm.Container(
-                  width: 48,
-                  height: 48,
-                  child: fm.Center(
-                    child: fm.Text(
-                      "Я",
-                      style: fm.TextStyle(
-                        color: fm.Colors.white,
-                        fontSize: 24,
-                        fontWeight: fm.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+            child: MapControlButton(
+              icon: fm.Icons.my_location_outlined,
+              backgroundColor: fm.Colors.black,
+              onPressed: () {
+                _cameraManager?.moveCameraToUserLocation();
+              },
             ),
           ),
         ],
       ),
     );
   }
+
+  @override
+  void onObjectAdded(UserLocationView view) {
+    dev.log('onObjectAdded called');
+    view.arrow.setIcon(
+      ImageProvider.fromImageProvider(
+        const fm.AssetImage('assets/images/user_arrow_icon.png'),
+      ),
+    );
+    view.arrow.setIconStyle(
+      const IconStyle(
+        anchor: math.Point(0.5, 0.5),
+        rotationType: RotationType.Rotate,
+        zIndex: 0.0,
+        scale: 0.2,
+      ),
+    );
+    final pinIcon = view.pin.useCompositeIcon();
+    pinIcon.setIcon(
+      ImageProvider.fromImageProvider(
+          const fm.AssetImage('assets/images/my_location_icon.png')),
+      const IconStyle(
+        anchor: math.Point(0.5, 0.5),
+        rotationType: RotationType.Rotate,
+        zIndex: 0.0,
+        scale: 0.2,
+      ),
+      name: 'icon',
+    );
+    view.accuracyCircle.fillColor = fm.Colors.blue.withAlpha(100);
+    dev.log('Custom icons applied');
+  }
+
+  @override
+  void onObjectRemoved(UserLocationView view) {}
+
+  @override
+  void onObjectUpdated(UserLocationView view, ObjectEvent event) {}
 }
