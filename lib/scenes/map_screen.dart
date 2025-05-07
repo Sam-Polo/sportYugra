@@ -5,7 +5,9 @@ import 'package:yandex_maps_mapkit/mapkit.dart';
 import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/image.dart';
+import 'dart:developer' as dev;
 import '../data/placemarks.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MapScreen extends fm.StatefulWidget {
   const MapScreen({super.key});
@@ -18,12 +20,14 @@ class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver {
   MapWindow? _mapWindow;
   String? _mapStyle;
+  UserLocationLayer? _userLocationLayer;
 
   @override
   void initState() {
     super.initState();
     fm.WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
+    _requestLocationPermission();
     print('MapKit onStart');
     mapkit.onStart();
   }
@@ -39,13 +43,75 @@ class _MapScreenState extends fm.State<MapScreen>
   Future<void> _loadMapStyle() async {
     try {
       _mapStyle = await rootBundle.loadString('assets/map_style.json');
-      print('Map style loaded');
+      dev.log('Map style loaded');
       if (_mapWindow != null) {
         _mapWindow?.map.setMapStyle(_mapStyle!);
-        print('Map style applied');
+        dev.log('Map style applied');
       }
     } catch (e) {
-      print('Error loading map style: $e');
+      dev.log('Error loading map style: $e');
+    }
+  }
+
+  Future<void> _requestLocationPermission() async {
+    final status = await Permission.location.request();
+    if (status.isGranted) {
+      print('[log] Location permission granted');
+      // Инициализируем слой геолокации только после получения разрешения
+      if (_mapWindow != null) {
+        await _initUserLocation();
+      }
+    } else {
+      print('[log] Location permission denied');
+    }
+  }
+
+  Future<void> _initUserLocation() async {
+    if (_mapWindow == null) return;
+
+    try {
+      final locationLayer = await mapkit.createUserLocationLayer(_mapWindow!);
+      setState(() {
+        _userLocationLayer = locationLayer;
+      });
+
+      // Включаем отображение местоположения пользователя
+      _userLocationLayer?.setVisible(true);
+
+      dev.log('User location layer initialized');
+    } catch (e) {
+      dev.log('Error initializing user location: $e');
+    }
+  }
+
+  void _moveToUserLocation() {
+    if (_userLocationLayer == null) {
+      _initUserLocation();
+      return;
+    }
+
+    try {
+      final position = _userLocationLayer?.cameraPosition();
+      if (position != null) {
+        final cameraCallback = MapCameraCallback(onMoveFinished: (isFinished) {
+          if (isFinished) {
+            dev.log('Camera movement completed');
+          } else {
+            dev.log('Camera movement interrupted');
+          }
+        });
+
+        _mapWindow?.map.moveWithAnimation(
+          position,
+          const Animation(AnimationType.Linear, duration: 1.0),
+          cameraCallback: cameraCallback,
+        );
+        dev.log('Moving to user location');
+      } else {
+        dev.log('User location is not available');
+      }
+    } catch (e) {
+      dev.log('Error moving to user location: $e');
     }
   }
 
@@ -78,6 +144,20 @@ class _MapScreenState extends fm.State<MapScreen>
     }
   }
 
+  void _logUserLocation() {
+    if (_userLocationLayer == null) {
+      dev.log('User location layer is not initialized');
+      return;
+    }
+    final position = _userLocationLayer?.cameraPosition();
+    if (position != null) {
+      dev.log(
+          'User location: lat: ${position.target.latitude} long: ${position.target.longitude}');
+    } else {
+      dev.log('User location is not available');
+    }
+  }
+
   @override
   fm.Widget build(fm.BuildContext context) {
     return fm.Scaffold(
@@ -104,6 +184,13 @@ class _MapScreenState extends fm.State<MapScreen>
                 );
                 print('Camera placed');
 
+                // Инициализируем слой местоположения только если есть разрешение
+                Permission.location.isGranted.then((isGranted) {
+                  if (isGranted) {
+                    _initUserLocation();
+                  }
+                });
+
                 // Добавляем метки после инициализации карты
                 _addPlacemarks();
               } catch (e) {
@@ -120,9 +207,7 @@ class _MapScreenState extends fm.State<MapScreen>
               elevation: 4,
               child: fm.InkWell(
                 borderRadius: fm.BorderRadius.circular(8),
-                onTap: () {
-                  // TODO: Добавить функционал возврата к своему местоположению
-                },
+                onTap: _logUserLocation,
                 child: fm.Container(
                   width: 48,
                   height: 48,

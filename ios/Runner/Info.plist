@@ -52,5 +52,10 @@
 	<true/>
 	<key>com.yandex.mapkit.API_KEY</key>
 	<string>f2e30ee3-2205-47bd-8f60-29bcdce884f4</string>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Приложению необходим доступ к геолокации для показа вашего местоположения на карте</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Приложению необходим доступ к геолокации для показа вашего местоположения на карте</string>
 </dict>
 </plist>
