@@ -86,32 +86,32 @@ class _MapScreenState extends fm.State<MapScreen>
 
   void _moveToUserLocation() {
     if (_userLocationLayer == null) {
-      _initUserLocation();
+      dev.log('User location layer is not initialized');
       return;
     }
-
-    try {
-      final position = _userLocationLayer?.cameraPosition();
-      if (position != null) {
-        final cameraCallback = MapCameraCallback(onMoveFinished: (isFinished) {
-          if (isFinished) {
-            dev.log('Camera movement completed');
-          } else {
-            dev.log('Camera movement interrupted');
-          }
-        });
-
-        _mapWindow?.map.moveWithAnimation(
-          position,
-          const Animation(AnimationType.Linear, duration: 1.0),
-          cameraCallback: cameraCallback,
-        );
-        dev.log('Moving to user location');
-      } else {
-        dev.log('User location is not available');
-      }
-    } catch (e) {
-      dev.log('Error moving to user location: $e');
+    final position = _userLocationLayer?.cameraPosition();
+    if (position != null) {
+      final cameraCallback = MapCameraCallback(onMoveFinished: (isFinished) {
+        if (isFinished) {
+          dev.log('Camera movement completed');
+        } else {
+          dev.log('Camera movement interrupted');
+        }
+      });
+      final newPosition = CameraPosition(
+        position.target,
+        zoom: 16,
+        azimuth: position.azimuth,
+        tilt: position.tilt,
+      );
+      _mapWindow?.map.moveWithAnimation(
+        newPosition,
+        const Animation(AnimationType.Linear, duration: 0.7),
+        cameraCallback: cameraCallback,
+      );
+      dev.log('Moving to user location with zoom 15');
+    } else {
+      dev.log('User location is not available');
     }
   }
 
@@ -207,7 +207,7 @@ class _MapScreenState extends fm.State<MapScreen>
               elevation: 4,
               child: fm.InkWell(
                 borderRadius: fm.BorderRadius.circular(8),
-                onTap: _logUserLocation,
+                onTap: _moveToUserLocation,
                 child: fm.Container(
                   width: 48,
                   height: 48,
