@@ -117,3 +117,25 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# IDE и редакторы
+.idea/
+.vscode/
+*.iml
+*.iws
+.DS_Store
+
+# Конфигурационные файлы
+*.env
+*.env.*
+google-services.json
+GoogleService-Info.plist
+
+# Сгенерированные файлы
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Кэш и зависимости
+node_modules/
+.pub-cache/

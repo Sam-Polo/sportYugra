@@ -1,8 +1,10 @@
+// map screen:
 import 'package:flutter/material.dart' as fm;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:yandex_maps_mapkit/mapkit.dart';
+import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
-// import 'package:yandex_maps_mapkit/image.dart';
+import 'package:yandex_maps_mapkit/image.dart';
 import '../data/placemarks.dart';
 
 class MapScreen extends fm.StatefulWidget {
@@ -22,11 +24,15 @@ class _MapScreenState extends fm.State<MapScreen>
     super.initState();
     fm.WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
+    print('MapKit onStart');
+    mapkit.onStart();
   }
 
   @override
   void dispose() {
     fm.WidgetsBinding.instance.removeObserver(this);
+    print('MapKit onStop');
+    mapkit.onStop();
     super.dispose();
   }
 
@@ -58,6 +64,16 @@ class _MapScreenState extends fm.State<MapScreen>
             placement: TextStylePlacement.Right,
             offset: 5.0,
           ),
+        )
+        ..setIcon(
+          ImageProvider.fromImageProvider(
+            const fm.AssetImage("assets/images/Yandex_Maps_icon.png"),
+          ),
+        )
+        ..setIconStyle(
+          const IconStyle(
+            scale: 0.1,
+          ),
         );
     }
   }
@@ -71,6 +87,11 @@ class _MapScreenState extends fm.State<MapScreen>
             onMapCreated: (mapWindow) {
               print('Map created: $mapWindow');
               _mapWindow = mapWindow;
+
+              if (_mapStyle != null) {
+                _mapWindow?.map.setMapStyle(_mapStyle!);
+                print('Map style applied');
+              }
 
               try {
                 _mapWindow?.map.move(
