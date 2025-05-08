@@ -144,16 +144,43 @@ class _MapScreenState extends fm.State<MapScreen>
               _initUserLocation();
             },
           ),
+          // Кнопки зума
           fm.Positioned(
             right: 16,
-            bottom: 16,
-            child: MapControlButton(
-              icon: fm.Icons.my_location_outlined,
-              backgroundColor: fm.Colors.black,
-              iconColor: fm.Colors.white,
-              onPressed: () {
-                _cameraManager?.moveCameraToUserLocation();
-              },
+            top: 0,
+            bottom: 0,
+            child: fm.Align(
+              alignment: fm.Alignment.centerRight,
+              child: fm.Column(
+                mainAxisSize:
+                    fm.MainAxisSize.min, // Колонку по размеру содержимого
+                children: [
+                  MapControlButton(
+                    icon: fm.Icons.add,
+                    backgroundColor: fm.Colors.black,
+                    iconColor: fm.Colors.white,
+                    onPressed: _zoomIn,
+                  ),
+                  fm.SizedBox(height: 8), // Небольшой отступ между кнопками
+                  MapControlButton(
+                    icon: fm.Icons.remove,
+                    backgroundColor: fm.Colors.black,
+                    iconColor: fm.Colors.white,
+                    onPressed: _zoomOut,
+                  ),
+                  fm.SizedBox(
+                      height:
+                          8), // Отступ между кнопками зума и кнопкой местоположения
+                  MapControlButton(
+                    icon: fm.Icons.my_location_outlined,
+                    backgroundColor: fm.Colors.black,
+                    iconColor: fm.Colors.white,
+                    onPressed: () {
+                      _cameraManager?.moveCameraToUserLocation();
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -198,4 +225,44 @@ class _MapScreenState extends fm.State<MapScreen>
 
   @override
   void onObjectUpdated(UserLocationView view, ObjectEvent event) {}
+
+  // Метод для увеличения масштаба карты
+  void _zoomIn() {
+    final currentPosition = _mapWindow?.map.cameraPosition;
+    if (currentPosition != null) {
+      final newZoom = currentPosition.zoom + 1.0;
+      // Ограничиваем максимальный зум (например, 20)
+      final clampedZoom = math.min(newZoom, 20.0);
+      _mapWindow?.map.moveWithAnimation(
+        CameraPosition(
+          currentPosition.target,
+          zoom: clampedZoom,
+          azimuth: currentPosition.azimuth,
+          tilt: currentPosition.tilt,
+        ),
+        const Animation(AnimationType.Smooth,
+            duration: 0.2), // Плавная анимация 0.5 сек
+      );
+    }
+  }
+
+  // Метод для уменьшения масштаба карты
+  void _zoomOut() {
+    final currentPosition = _mapWindow?.map.cameraPosition;
+    if (currentPosition != null) {
+      final newZoom = currentPosition.zoom - 1;
+      // Ограничиваем минимальный зум (например, 0)
+      final clampedZoom = math.max(newZoom, 0.0);
+      _mapWindow?.map.moveWithAnimation(
+        CameraPosition(
+          currentPosition.target,
+          zoom: clampedZoom,
+          azimuth: currentPosition.azimuth,
+          tilt: currentPosition.tilt,
+        ),
+        const Animation(AnimationType.Smooth,
+            duration: 0.2), // Плавная анимация 0.5 сек
+      );
+    }
+  }
 }

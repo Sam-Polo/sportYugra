@@ -47,9 +47,6 @@ dependencies:
   permission_handler: ^12.0.0+1
   rxdart: ^0.27.7
 
-  permission_handler: ^12.0.0 # Добавляем зависимость для работы с разрешениями
-  rxdart: # Добавляем зависимость для реактивного программирования
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
