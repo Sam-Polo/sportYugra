@@ -11,7 +11,7 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
-    - map_with_user_placemark
+    - mapkit-samples/
 
 
 linter:

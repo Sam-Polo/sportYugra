@@ -73,18 +73,35 @@ class _MapScreenState extends fm.State<MapScreen>
     final permissions = [PermissionType.accessLocation];
     await _permissionManager.tryToRequest(permissions);
     await _permissionManager.showRequestDialog(permissions);
+
+    final status = await Permission.location.status;
+
+    if (status.isGranted && _mapWindow != null && _locationManager != null) {
+      dev.log(
+          'Location permission granted, attempting to update location/camera');
+      _cameraManager?.moveCameraToUserLocation();
+    }
   }
 
   void _initUserLocation() {
     if (_mapWindow == null) return;
 
-    _userLocationLayer = mapkit.createUserLocationLayer(_mapWindow!)
-      ..setVisible(true)
-      ..setObjectListener(this);
-    dev.log('UserLocationLayer initialized and listener set');
+    Permission.location.isGranted.then((isGranted) {
+      if (isGranted) {
+        _userLocationLayer = mapkit.createUserLocationLayer(_mapWindow!)
+          ..headingEnabled = true
+          ..setVisible(true)
+          ..setObjectListener(this);
+        dev.log('UserLocationLayer initialized and listener set');
 
-    _locationManager = mapkit.createLocationManager();
-    _cameraManager = CameraManager(_mapWindow!, _locationManager!)..start();
+        _locationManager = mapkit.createLocationManager();
+        _cameraManager = CameraManager(_mapWindow!, _locationManager!)..start();
+        dev.log('LocationManager and CameraManager initialized');
+      } else {
+        dev.log(
+            'Location permission not granted, skipping LocationManager and UserLocationLayer initialization');
+      }
+    });
   }
 
   void _addPlacemarks() {
@@ -124,11 +141,7 @@ class _MapScreenState extends fm.State<MapScreen>
               );
 
               _addPlacemarks();
-              Permission.location.isGranted.then((isGranted) {
-                if (isGranted) {
-                  _initUserLocation();
-                }
-              });
+              _initUserLocation();
             },
           ),
           fm.Positioned(
@@ -137,6 +150,7 @@ class _MapScreenState extends fm.State<MapScreen>
             child: MapControlButton(
               icon: fm.Icons.my_location_outlined,
               backgroundColor: fm.Colors.black,
+              iconColor: fm.Colors.white,
               onPressed: () {
                 _cameraManager?.moveCameraToUserLocation();
               },

@@ -4,12 +4,14 @@ class MapControlButton extends StatelessWidget {
   final IconData icon;
   final Color backgroundColor;
   final VoidCallback onPressed;
+  final Color? iconColor;
 
   const MapControlButton({
     super.key,
     required this.icon,
     required this.backgroundColor,
     required this.onPressed,
+    this.iconColor,
   });
 
   @override
@@ -18,6 +20,7 @@ class MapControlButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
+        splashColor: Colors.white.withOpacity(1),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           width: 48,
@@ -35,7 +38,7 @@ class MapControlButton extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: Theme.of(context).colorScheme.onSurface,
+            color: iconColor ?? Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),

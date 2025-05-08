@@ -5,15 +5,15 @@ import 'dart:developer' as developer;
 import 'scenes/map_screen.dart'; // Import the MapScreen from map_screen.dart
 import 'package:permission_handler/permission_handler.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    developer.log('Initializing MapKit...');
-    init.initMapkit(apiKey: 'b9296eef-e8fc-4109-b187-d45172699d10');
-    developer.log('MapKit initialized');
-  } catch (e) {
-    developer.log('MapKit initialization failed: $e');
-  }
+  init.initMapkit(apiKey: 'b9296eef-e8fc-4109-b187-d45172699d10');
+  developer.log('Initialized MapKit');
+
+  // Запрашиваем разрешение на геолокацию и ждем его перед запуском приложения
+  final isLocationPermissionGranted = await requestLocationPermission();
+  developer.log('Location permission granted: $isLocationPermissionGranted');
+
   runApp(const MyApp());
 }
 
