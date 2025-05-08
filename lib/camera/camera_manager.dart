@@ -18,9 +18,9 @@ class CameraManager {
       _location = location;
       if (_isLocationUnknown) {
         _isLocationUnknown = false;
-        Future.delayed(const Duration(seconds: 1), () {
-          moveCameraToUserLocation();
-        });
+        // Future.delayed(const Duration(seconds: 1), () {
+        //   moveCameraToUserLocation();
+        // });
       }
     },
     onLocationStatusUpdate: (locationStatus) {},

@@ -139,3 +139,9 @@ GoogleService-Info.plist
 # Кэш и зависимости
 node_modules/
 .pub-cache/
+
+# firebase options
+lib/firebase_options.dart
+
+
+

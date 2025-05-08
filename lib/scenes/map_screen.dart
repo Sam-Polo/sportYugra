@@ -106,6 +106,18 @@ class _MapScreenState extends fm.State<MapScreen>
   @override
   fm.Widget build(fm.BuildContext context) {
     return fm.Scaffold(
+      appBar: fm.AppBar(
+        title: const fm.Text('SportYugra'),
+        actions: [
+          fm.IconButton(
+            icon: const fm.Icon(fm.Icons.list),
+            tooltip: 'Спортивные объекты',
+            onPressed: () {
+              fm.Navigator.pushNamed(context, '/sport_objects');
+            },
+          ),
+        ],
+      ),
       body: fm.Stack(
         children: [
           YandexMap(

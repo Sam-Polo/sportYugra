@@ -1,5 +1,5 @@
 import 'package:yandex_maps_mapkit/mapkit.dart';
-import '../models/placemark.dart';
+import 'placemark_model.dart';
 
 final List<PlacemarkData> placemarks = [
   PlacemarkData(

@@ -3,10 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:yandex_maps_mapkit/init.dart' as init;
 import 'dart:developer' as developer;
 import 'scenes/map_screen.dart'; // Import the MapScreen from map_screen.dart
+import 'scenes/sport_objects_screen.dart'; // Импорт экрана спортивных объектов
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Инициализация Firebase
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    developer.log('Initialized Firebase');
+  } catch (e) {
+    developer.log('Error initializing Firebase: $e');
+  }
+
+  // Инициализация Yandex MapKit
   init.initMapkit(apiKey: 'b9296eef-e8fc-4109-b187-d45172699d10');
   developer.log('Initialized MapKit');
 
@@ -23,7 +38,16 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: const MapScreen(),
+      title: 'SportYugra',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      routes: {
+        '/': (context) => const MapScreen(),
+        '/sport_objects': (context) => const SportObjectsScreen(),
+      },
+      initialRoute: '/',
     );
   }
 }
