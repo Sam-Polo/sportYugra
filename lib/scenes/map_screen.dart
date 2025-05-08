@@ -8,7 +8,6 @@ import 'package:yandex_maps_mapkit/mapkit.dart';
 import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/image.dart';
-import '../data/placemarks.dart';
 import '../camera/camera_manager.dart';
 import '../permissions/permission_manager.dart';
 import '../widgets/map_control_button.dart';
@@ -104,20 +103,6 @@ class _MapScreenState extends fm.State<MapScreen>
     });
   }
 
-  void _addPlacemarks() {
-    if (_mapWindow == null) return;
-    for (final placemark in placemarks) {
-      _mapWindow!.map.mapObjects.addPlacemark()
-        ..geometry = placemark.location
-        ..setText(placemark.name)
-        ..setTextStyle(const TextStyle(
-            size: 12.0, color: fm.Colors.black, outlineColor: fm.Colors.white))
-        ..setIcon(ImageProvider.fromImageProvider(
-            const fm.AssetImage("assets/images/Yandex_Maps_icon.png")))
-        ..setIconStyle(const IconStyle(scale: 0.1));
-    }
-  }
-
   @override
   fm.Widget build(fm.BuildContext context) {
     return fm.Scaffold(
@@ -140,7 +125,6 @@ class _MapScreenState extends fm.State<MapScreen>
                 ),
               );
 
-              _addPlacemarks();
               _initUserLocation();
             },
           ),
