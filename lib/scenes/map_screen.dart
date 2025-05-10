@@ -11,6 +11,10 @@ import 'package:yandex_maps_mapkit/image.dart';
 import '../camera/camera_manager.dart';
 import '../permissions/permission_manager.dart';
 import '../widgets/map_control_button.dart';
+import '../listeners/map_object_tap_listener.dart';
+import '../data/placemarks/placemark_model.dart';
+import '../data/placemarks/firestore_placemarks.dart';
+import '../map_objects/map_objects_manager.dart';
 
 class MapScreen extends fm.StatefulWidget {
   const MapScreen({super.key});
@@ -29,12 +33,22 @@ class _MapScreenState extends fm.State<MapScreen>
   CameraManager? _cameraManager;
   late final _permissionManager = const PermissionManager();
 
+  // Менеджер объектов на карте
+  MapObjectsManager? _mapObjectsManager;
+
+  // Сервис для работы с Firestore
+  final _firestorePlacemarks = FirestorePlacemarks();
+
+  // Флаг загрузки данных
+  bool _isLoading = false;
+
   @override
   void initState() {
     super.initState();
     fm.WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
     _requestLocationPermission();
+
     dev.log('MapKit onStart');
     mapkit.onStart();
   }
@@ -43,6 +57,7 @@ class _MapScreenState extends fm.State<MapScreen>
   void dispose() {
     fm.WidgetsBinding.instance.removeObserver(this);
     _cameraManager?.dispose();
+    _mapObjectsManager?.dispose();
     dev.log('MapKit onStop');
     mapkit.onStop();
     super.dispose();
@@ -61,7 +76,6 @@ class _MapScreenState extends fm.State<MapScreen>
       dev.log('Map style loaded');
       if (_mapWindow != null) {
         _mapWindow?.map.setMapStyle(_mapStyle!);
-        dev.log('Map style applied');
       }
     } catch (e) {
       dev.log('Error loading map style: $e');
@@ -103,21 +117,84 @@ class _MapScreenState extends fm.State<MapScreen>
     });
   }
 
+  // Обработчик нажатия на объект карты
+  bool _onMapObjectTapped(MapObject mapObject, Point point) {
+    // Проверяем, что это плейсмарк
+    if (mapObject is PlacemarkMapObject) {
+      final userData = mapObject.userData;
+      if (userData != null && userData is PlacemarkData) {
+        _showPlacemarkInfo(userData, point);
+        return true; // прекращаем обработку события
+      }
+    }
+    return false; // продолжаем обработку события
+  }
+
+  // Показывает информацию о плейсмарке
+  void _showPlacemarkInfo(PlacemarkData placemark, Point point) {
+    dev.log(
+        'Показываем информацию о метке: ${placemark.name}, координаты: ${point.latitude}, ${point.longitude}');
+
+    // Показываем диалог с информацией о метке
+    if (mounted) {
+      fm.ScaffoldMessenger.of(context).showSnackBar(
+        fm.SnackBar(
+          content: fm.Text('Выбран объект: ${placemark.name}'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  // Загружает объекты из Firestore и добавляет их на карту
+  Future<void> _loadPlacemarksFromFirestore() async {
+    if (_mapWindow == null || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Инициализируем менеджер объектов карты, если еще не сделано
+      _mapObjectsManager ??= MapObjectsManager(
+        _mapWindow!,
+        onMapObjectTap: _onMapObjectTapped,
+      );
+
+      // Очищаем текущие объекты, если они есть
+      _mapObjectsManager!.clear();
+
+      // Загружаем спортивные объекты из Firestore
+      final placemarks = await _firestorePlacemarks.getSportObjects();
+
+      // Добавляем загруженные объекты на карту
+      _mapObjectsManager!.addPlacemarks(placemarks);
+
+      dev.log(
+          'Плейсмарки из Firestore добавлены на карту: ${placemarks.length}');
+    } catch (e) {
+      dev.log('Ошибка загрузки плейсмарков из Firestore: $e');
+
+      if (mounted) {
+        fm.ScaffoldMessenger.of(context).showSnackBar(
+          fm.SnackBar(
+            content: fm.Text('Не удалось загрузить объекты'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   fm.Widget build(fm.BuildContext context) {
     return fm.Scaffold(
-      appBar: fm.AppBar(
-        title: const fm.Text('SportYugra'),
-        actions: [
-          fm.IconButton(
-            icon: const fm.Icon(fm.Icons.list),
-            tooltip: 'Спортивные объекты',
-            onPressed: () {
-              fm.Navigator.pushNamed(context, '/sport_objects');
-            },
-          ),
-        ],
-      ),
       body: fm.Stack(
         children: [
           YandexMap(
@@ -138,7 +215,33 @@ class _MapScreenState extends fm.State<MapScreen>
               );
 
               _initUserLocation();
+
+              // Загружаем плейсмарки из Firestore
+              _loadPlacemarksFromFirestore();
             },
+          ),
+          // Индикатор загрузки
+          if (_isLoading)
+            const fm.Positioned.fill(
+              child: fm.Center(
+                child: fm.CircularProgressIndicator(),
+              ),
+            ),
+          // Кнопка обновления данных
+          fm.Positioned(
+            left: 16,
+            top: 16,
+            child: fm.Container(
+              decoration: fm.BoxDecoration(
+                color: fm.Colors.black.withOpacity(0.5),
+                borderRadius: fm.BorderRadius.circular(8),
+              ),
+              child: fm.IconButton(
+                icon: const fm.Icon(fm.Icons.refresh, color: fm.Colors.white),
+                onPressed: _loadPlacemarksFromFirestore,
+                tooltip: 'Обновить данные',
+              ),
+            ),
           ),
           // Кнопки зума
           fm.Positioned(
@@ -237,7 +340,7 @@ class _MapScreenState extends fm.State<MapScreen>
           tilt: currentPosition.tilt,
         ),
         const Animation(AnimationType.Smooth,
-            duration: 0.2), // Плавная анимация 0.5 сек
+            duration: 0.2), // Плавная анимация 0.2 сек
       );
     }
   }
@@ -257,7 +360,7 @@ class _MapScreenState extends fm.State<MapScreen>
           tilt: currentPosition.tilt,
         ),
         const Animation(AnimationType.Smooth,
-            duration: 0.2), // Плавная анимация 0.5 сек
+            duration: 0.2), // Плавная анимация 0.2 сек
       );
     }
   }

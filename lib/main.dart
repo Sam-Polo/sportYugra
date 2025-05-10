@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:yandex_maps_mapkit/init.dart' as init;
 import 'dart:developer' as developer;
 import 'scenes/map_screen.dart'; // Import the MapScreen from map_screen.dart
-import 'scenes/sport_objects_screen.dart'; // Импорт экрана спортивных объектов
+// Импорт экрана спортивных объектов
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -38,14 +38,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SportYugra',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
       routes: {
         '/': (context) => const MapScreen(),
-        '/sport_objects': (context) => const SportObjectsScreen(),
       },
       initialRoute: '/',
     );
