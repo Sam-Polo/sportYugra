@@ -84,7 +84,7 @@ class _MapScreenState extends fm.State<MapScreen>
 
   Future<void> _loadMapStyle() async {
     try {
-      _mapStyle = await rootBundle.loadString('assets/map_style_old.json');
+      _mapStyle = await rootBundle.loadString('assets/map_style_new.json');
       dev.log('Map style loaded');
       if (_mapWindow != null) {
         _mapWindow?.map.setMapStyle(_mapStyle!);
