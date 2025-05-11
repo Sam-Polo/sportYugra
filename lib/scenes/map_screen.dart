@@ -257,6 +257,13 @@ class _MapScreenState extends fm.State<MapScreen>
               _loadPlacemarksFromFirestore();
             },
           ),
+          // Search bar
+          fm.Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: const _MapSearchBar(),
+          ),
           // Индикатор загрузки
           if (_isLoading)
             const fm.Positioned.fill(
@@ -400,5 +407,45 @@ class _MapScreenState extends fm.State<MapScreen>
             duration: 0.2), // Плавная анимация 0.2 сек
       );
     }
+  }
+}
+
+class _MapSearchBar extends fm.StatelessWidget {
+  const _MapSearchBar();
+
+  @override
+  fm.Widget build(fm.BuildContext context) {
+    return fm.SafeArea(
+      child: fm.Container(
+        margin: const fm.EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 8,
+        ),
+        padding: const fm.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: fm.BoxDecoration(
+          color: fm.Colors.black.withOpacity(0.7),
+          borderRadius: fm.BorderRadius.circular(12),
+        ),
+        child: fm.Row(
+          children: [
+            const fm.Icon(
+              fm.Icons.search,
+              color: fm.Colors.grey,
+              size: 24,
+            ),
+            const fm.SizedBox(width: 8),
+            fm.Text(
+              'Поиск',
+              style: fm.TextStyle(
+                color: fm.Colors.grey,
+                fontSize: 18,
+                fontWeight: fm.FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
