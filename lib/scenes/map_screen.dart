@@ -41,6 +41,9 @@ class _MapScreenState extends fm.State<MapScreen>
 
   // Флаг загрузки данных
   bool _isLoading = false;
+  bool _placemarksLoaded = false; // добавил флаг загрузки плейсмарков
+  bool _locationInitialized =
+      false; // добавил флаг инициализации местоположения
 
   @override
   void initState() {
@@ -110,6 +113,12 @@ class _MapScreenState extends fm.State<MapScreen>
         _locationManager = mapkit.createLocationManager();
         _cameraManager = CameraManager(_mapWindow!, _locationManager!)..start();
         dev.log('LocationManager and CameraManager initialized');
+
+        // Отмечаем, что местоположение инициализировано
+        _locationInitialized = true;
+
+        // Попытка переместить камеру после загрузки и получения местоположения
+        _tryMoveCameraAfterLoadAndLocation();
       } else {
         dev.log(
             'Location permission not granted, skipping LocationManager and UserLocationLayer initialization');
@@ -172,6 +181,12 @@ class _MapScreenState extends fm.State<MapScreen>
 
       dev.log(
           'Плейсмарки из Firestore добавлены на карту: ${placemarks.length}');
+
+      // Отмечаем, что плейсмарки загружены
+      _placemarksLoaded = true;
+
+      // Попытка переместить камеру после загрузки и получения местоположения
+      _tryMoveCameraAfterLoadAndLocation();
     } catch (e) {
       dev.log('Ошибка загрузки плейсмарков из Firestore: $e');
 
@@ -189,6 +204,18 @@ class _MapScreenState extends fm.State<MapScreen>
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Попытка переместить камеру к пользователю, если местоположение получено и плейсмарки загружены
+  void _tryMoveCameraAfterLoadAndLocation() {
+    if (_cameraManager != null && _locationInitialized && _placemarksLoaded) {
+      // Добавляем задержку в 1 секунду перед перемещением камеры
+      Future.delayed(const Duration(seconds: 1), () {
+        _cameraManager?.moveCameraToUserLocation();
+        dev.log(
+            'Attempting to move camera after load and location init with 1s delay');
+      });
     }
   }
 
