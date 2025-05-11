@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:yandex_maps_mapkit/init.dart' as init;
 import 'dart:developer' as developer;
 import 'scenes/map_screen.dart'; // Import the MapScreen from map_screen.dart
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // импортируем пакет для работы с .env
 // Импорт экрана спортивных объектов
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -10,6 +11,10 @@ import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Загружаем переменные окружения из .env файла
+  await dotenv.load(fileName: ".env");
+  developer.log('Loaded .env file');
 
   // Инициализация Firebase
   try {
@@ -21,8 +26,9 @@ Future<void> main() async {
     developer.log('Error initializing Firebase: $e');
   }
 
-  // Инициализация Yandex MapKit
-  init.initMapkit(apiKey: 'b9296eef-e8fc-4109-b187-d45172699d10');
+  // Инициализация Yandex MapKit с ключом из .env
+  final String yandexApiKey = dotenv.env['YANDEX_MAPKIT_API_KEY']!;
+  init.initMapkit(apiKey: yandexApiKey);
   developer.log('Initialized MapKit');
 
   // Запрашиваем разрешение на геолокацию и ждем его перед запуском приложения
