@@ -15,6 +15,7 @@ import '../listeners/map_object_tap_listener.dart';
 import '../data/placemarks/placemark_model.dart';
 import '../data/placemarks/firestore_placemarks.dart';
 import '../map_objects/map_objects_manager.dart';
+import 'dart:async';
 
 class MapScreen extends fm.StatefulWidget {
   const MapScreen({super.key});
@@ -25,7 +26,7 @@ class MapScreen extends fm.StatefulWidget {
 
 class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
-    implements UserLocationObjectListener {
+    implements UserLocationObjectListener, MapCameraListener {
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
   final bool _enableAutoCameraMove = false; // установите false для отключения
 
@@ -48,6 +49,10 @@ class _MapScreenState extends fm.State<MapScreen>
   bool _locationInitialized =
       false; // добавил флаг инициализации местоположения
 
+  // Порог зума, ниже которого названия меток будут скрыты
+  // отредактируй это значение, чтобы изменить порог
+  final double _textVisibilityZoomThreshold = 14.0;
+
   @override
   void initState() {
     super.initState();
@@ -62,6 +67,7 @@ class _MapScreenState extends fm.State<MapScreen>
   @override
   void dispose() {
     fm.WidgetsBinding.instance.removeObserver(this);
+    _mapWindow?.map.removeCameraListener(this); // удаляем слушатель камеры
     _cameraManager?.dispose();
     _mapObjectsManager?.dispose();
     dev.log('MapKit onStop');
@@ -78,7 +84,7 @@ class _MapScreenState extends fm.State<MapScreen>
 
   Future<void> _loadMapStyle() async {
     try {
-      _mapStyle = await rootBundle.loadString('assets/map_style.json');
+      _mapStyle = await rootBundle.loadString('assets/map_style_old.json');
       dev.log('Map style loaded');
       if (_mapWindow != null) {
         _mapWindow?.map.setMapStyle(_mapStyle!);
@@ -122,6 +128,9 @@ class _MapScreenState extends fm.State<MapScreen>
 
         // Попытка переместить камеру после загрузки и получения местоположения
         _tryMoveCameraAfterLoadAndLocation();
+
+        // Добавляем этот State как слушатель камеры
+        _mapWindow?.map.addCameraListener(this);
       } else {
         dev.log(
             'Location permission not granted, skipping LocationManager and UserLocationLayer initialization');
@@ -190,6 +199,12 @@ class _MapScreenState extends fm.State<MapScreen>
 
       // Попытка переместить камеру после загрузки и получения местоположения
       _tryMoveCameraAfterLoadAndLocation();
+
+      // После загрузки и добавления плейсмарков, обновляем их видимость текста
+      // в зависимости от текущего зума
+      if (_mapWindow != null) {
+        _updatePlacemarkTextVisibility(_mapWindow!.map.cameraPosition.zoom);
+      }
     } catch (e) {
       dev.log('Ошибка загрузки плейсмарков из Firestore: $e');
 
@@ -227,6 +242,23 @@ class _MapScreenState extends fm.State<MapScreen>
             'Attempting to move camera after load and location init with 1s delay');
       });
     }
+  }
+
+  // Обновляет видимость текста у всех плейсмарков в зависимости от уровня зума
+  void _updatePlacemarkTextVisibility(double currentZoom) {
+    dev.log(
+        '[MapScreenState] _updatePlacemarkTextVisibility called with zoom: $currentZoom'); // лог вызова метода
+    // если менеджер объектов не инициализирован, выходим
+    if (_mapObjectsManager == null) return;
+
+    // определяем, нужно ли показывать текст на текущем зуме
+    final bool showText = currentZoom >= _textVisibilityZoomThreshold;
+
+    // перебираем все добавленные плейсмарки и обновляем их видимость текста через менеджер объектов
+    _mapObjectsManager?.forEachPlacemark((placemarkObject, placemarkId) {
+      _mapObjectsManager?.setPlacemarkTextVisibility(placemarkId, showText);
+    });
+    // dev.log('Text visibility updated for zoom: $currentZoom, showText: $showText'); // для отладки
   }
 
   @override
@@ -368,6 +400,20 @@ class _MapScreenState extends fm.State<MapScreen>
 
   @override
   void onObjectUpdated(UserLocationView view, ObjectEvent event) {}
+
+  // Реализация MapCameraListener
+  @override
+  void onCameraPositionChanged(
+    Map map,
+    CameraPosition cameraPosition,
+    CameraUpdateReason cameraUpdateReason,
+    bool finished,
+  ) {
+    dev.log(
+        '[MapScreenState] onCameraPositionChanged called, zoom: ${cameraPosition.zoom}, finished: $finished'); // лог слушателя
+    // вызываем нашу логику обновления видимости текста
+    _updatePlacemarkTextVisibility(cameraPosition.zoom);
+  }
 
   // Метод для увеличения масштаба карты
   void _zoomIn() {

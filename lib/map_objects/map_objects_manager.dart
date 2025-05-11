@@ -30,6 +30,9 @@ class MapObjectsManager {
   // Словарь для хранения добавленных объектов по идентификатору (ключ - ID, значение - объект)
   final _placemarkObjects = <String, PlacemarkMapObject>{};
 
+  // Сет для отслеживания плейсмарков, у которых сейчас отображается текст
+  final Set<String> _placemarksWithVisibleText = {};
+
   MapObjectsManager(this._mapWindow, {required this.onMapObjectTap}) {
     _mapObjectTapListener =
         MapObjectTapListenerImpl(onMapObjectTapped: _onMapObjectTapped);
@@ -116,8 +119,10 @@ class MapObjectsManager {
     mapObject.geometry = placemark.location;
     mapObject.setIcon(_placemarkIcon);
 
-    // Установка имени объекта как текста
+    // Установка имени объекта как текста (изначально текст виден)
     mapObject.setText(placemark.name);
+    _placemarksWithVisibleText
+        .add(placemarkId); // добавляем в сет видимых текстов
 
     // Настройка стиля текста для лучшей читаемости на светлом фоне
     mapObject.setTextStyle(
@@ -210,6 +215,7 @@ class MapObjectsManager {
     _mapObjectCollection.clear();
     _addedPlacemarkIds.clear();
     _placemarkObjects.clear();
+    _placemarksWithVisibleText.clear(); // очищаем сет видимых текстов
     _isInitialized = false;
     dev.log('Cleared all map objects');
   }
@@ -225,9 +231,63 @@ class MapObjectsManager {
     _mapObjectCollection.clear();
     _addedPlacemarkIds.clear();
     _placemarkObjects.clear();
+    _placemarksWithVisibleText.clear(); // очищаем сет видимых текстов
     dev.log('MapObjectsManager disposed');
   }
 
   /// Проверяет инициализирована ли коллекция объектов
   bool get isInitialized => _isInitialized;
+
+  // выполняет действие для каждого плейсмарка
+  void forEachPlacemark(Function(PlacemarkMapObject, String) action) {
+    _placemarkObjects.forEach((id, object) => action(object, id));
+  }
+
+  // устанавливает видимость текста для конкретного плейсмарка
+  void setPlacemarkTextVisibility(String placemarkId, bool visible) {
+    final placemarkObject = _placemarkObjects[placemarkId];
+    final placemarkData = placemarkObject?.userData as PlacemarkData?;
+
+    if (placemarkObject != null && placemarkData != null) {
+      // логируем попытку изменения видимости
+      dev.log(
+          '[setPlacemarkTextVisibility] Попытка установить видимость для $placemarkId на $visible');
+
+      if (visible && !_placemarksWithVisibleText.contains(placemarkId)) {
+        // показываем текст, если нужно и он сейчас скрыт
+        placemarkObject.setText(placemarkData.name);
+        // переустанавливаем стиль текста, чтобы убедиться, что он применился с видимым цветом
+        placemarkObject.setTextStyle(
+          const TextStyle(
+            size: 10.0,
+            color: Color.fromARGB(255, 5, 37, 88), // видимый цвет
+            outlineColor: Color.fromARGB(255, 96, 142, 196), // видимый контур
+            outlineWidth: 1.5,
+            placement: TextStylePlacement.Bottom,
+            offset: 5.0,
+          ),
+        );
+        _placemarksWithVisibleText.add(placemarkId);
+        dev.log(
+            '[setPlacemarkTextVisibility] Текст показан для $placemarkId'); // для отладки
+      } else if (!visible && _placemarksWithVisibleText.contains(placemarkId)) {
+        // скрываем текст, если нужно и он сейчас виден
+        placemarkObject.setText(''); // устанавливаем пустую строку для скрытия
+        _placemarksWithVisibleText.remove(placemarkId);
+        dev.log(
+            '[setPlacemarkTextVisibility] Текст скрыт для $placemarkId'); // для отладки
+      } else {
+        dev.log(
+            '[setPlacemarkTextVisibility] Видимость для $placemarkId уже в нужном состоянии ($visible), изменений нет.'); // для отладки
+      }
+    } else {
+      dev.log(
+          '[setPlacemarkTextVisibility] Объект или данные для $placemarkId не найдены.'); // для отладки
+    }
+  }
+
+  // проверяет, показан ли текст у конкретного плейсмарка
+  bool isPlacemarkTextVisible(String placemarkId) {
+    return _placemarksWithVisibleText.contains(placemarkId);
+  }
 }

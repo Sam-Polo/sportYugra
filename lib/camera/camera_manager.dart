@@ -1,17 +1,12 @@
 import 'dart:async';
-import 'package:rxdart/rxdart.dart';
 import 'package:yandex_maps_mapkit/mapkit.dart';
 import '../location/location_listener_impl.dart';
 import 'camera_position_listener.dart';
+import 'dart:developer' as dev;
 
 class CameraManager {
   final MapWindow _mapWindow;
   final LocationManager _locationManager;
-
-  final _cameraPosition = BehaviorSubject<CameraPosition>();
-
-  late final _cameraPositionListener = CameraPositionListenerImpl(
-      (_, cameraPosition, __, ___) => _cameraPosition.add(cameraPosition));
 
   late final _locationListener = LocationListenerImpl(
     onLocationUpdate: (location) {
@@ -29,8 +24,6 @@ class CameraManager {
   static const _mapDefaultZoom = 15.0;
 
   CameraManager(this._mapWindow, this._locationManager);
-
-  Stream<CameraPosition> get cameraPosition => _cameraPosition;
 
   void moveCameraToUserLocation() {
     _location?.let((location) {
@@ -56,7 +49,6 @@ class CameraManager {
 
   void start() {
     _stop();
-    _mapWindow.map.addCameraListener(_cameraPositionListener);
     _locationManager.subscribeForLocationUpdates(
       LocationSubscriptionSettings(
         LocationUseInBackground.Disallow,
@@ -68,12 +60,10 @@ class CameraManager {
 
   void dispose() {
     _stop();
-    _cameraPosition.close();
   }
 
   void _stop() {
     _locationManager.unsubscribe(_locationListener);
-    _mapWindow.map.removeCameraListener(_cameraPositionListener);
   }
 }
 

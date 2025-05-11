@@ -76,7 +76,8 @@ flutter:
 
   assets:
     - assets/images/
-    - assets/map_style.json
+    - assets/map_style_new.json
+    - assets/map_style_old.json
     - .env
 
   # To add assets to your application, add an assets section, like this:

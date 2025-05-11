@@ -1,4 +1,5 @@
 import 'package:yandex_maps_mapkit/mapkit.dart';
+import 'dart:developer' as dev;
 
 class CameraPositionListenerImpl implements MapCameraListener {
   final void Function(
@@ -17,6 +18,8 @@ class CameraPositionListenerImpl implements MapCameraListener {
     CameraUpdateReason cameraUpdateReason,
     bool finished,
   ) {
+    dev.log(
+        '[CameraPositionListenerImpl] onCameraPositionChanged called, zoom: ${cameraPosition.zoom}, finished: $finished');
     _onCameraPositionChanged(map, cameraPosition, cameraUpdateReason, finished);
   }
 }
