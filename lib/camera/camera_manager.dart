@@ -18,8 +18,6 @@ class CameraManager {
       _location = location;
       if (_isLocationUnknown) {
         _isLocationUnknown = false;
-
-        moveCameraToUserLocation(); // перемещение камеры к пользователю
       }
     },
     onLocationStatusUpdate: (locationStatus) {},

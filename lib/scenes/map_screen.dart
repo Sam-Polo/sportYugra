@@ -26,6 +26,9 @@ class MapScreen extends fm.StatefulWidget {
 class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
     implements UserLocationObjectListener {
+  // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
+  final bool _enableAutoCameraMove = false; // установите false для отключения
+
   MapWindow? _mapWindow;
   String? _mapStyle;
   UserLocationLayer? _userLocationLayer;
@@ -209,6 +212,13 @@ class _MapScreenState extends fm.State<MapScreen>
 
   // Попытка переместить камеру к пользователю, если местоположение получено и плейсмарки загружены
   void _tryMoveCameraAfterLoadAndLocation() {
+    // Проверяем флаг автоматического перемещения камеры
+    if (!_enableAutoCameraMove) {
+      dev.log(
+          'Автоматическое перемещение камеры отключено флагом _enableAutoCameraMove');
+      return; // Если флаг false, выходим из функции
+    }
+
     if (_cameraManager != null && _locationInitialized && _placemarksLoaded) {
       // Добавляем задержку в 1 секунду перед перемещением камеры
       Future.delayed(const Duration(seconds: 1), () {
