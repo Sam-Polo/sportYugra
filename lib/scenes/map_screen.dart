@@ -267,10 +267,10 @@ class _MapScreenState extends fm.State<MapScreen>
           // Кнопка обновления данных
           fm.Positioned(
             left: 16,
-            top: 16,
+            bottom: 16,
             child: fm.Container(
               decoration: fm.BoxDecoration(
-                color: fm.Colors.black.withOpacity(0.5),
+                color: const fm.Color(0xBF090230),
                 borderRadius: fm.BorderRadius.circular(8),
               ),
               child: fm.IconButton(
@@ -293,14 +293,14 @@ class _MapScreenState extends fm.State<MapScreen>
                 children: [
                   MapControlButton(
                     icon: fm.Icons.add,
-                    backgroundColor: fm.Colors.black,
+                    backgroundColor: const fm.Color(0xBF090230),
                     iconColor: fm.Colors.white,
                     onPressed: _zoomIn,
                   ),
                   fm.SizedBox(height: 8), // Небольшой отступ между кнопками
                   MapControlButton(
                     icon: fm.Icons.remove,
-                    backgroundColor: fm.Colors.black,
+                    backgroundColor: const fm.Color(0xBF090230),
                     iconColor: fm.Colors.white,
                     onPressed: _zoomOut,
                   ),
@@ -309,7 +309,7 @@ class _MapScreenState extends fm.State<MapScreen>
                           8), // Отступ между кнопками зума и кнопкой местоположения
                   MapControlButton(
                     icon: fm.Icons.my_location_outlined,
-                    backgroundColor: fm.Colors.black,
+                    backgroundColor: const fm.Color(0xBF090230),
                     iconColor: fm.Colors.white,
                     onPressed: () {
                       _cameraManager?.moveCameraToUserLocation();
