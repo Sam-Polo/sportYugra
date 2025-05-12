@@ -156,13 +156,13 @@ class _MapScreenState extends fm.State<MapScreen>
     dev.log(
         'Показываем информацию о метке: ${placemark.name}, координаты: ${point.latitude}, ${point.longitude}');
 
-    // Показываем диалог с информацией о метке
     if (mounted) {
-      fm.ScaffoldMessenger.of(context).showSnackBar(
-        fm.SnackBar(
-          content: fm.Text('Выбран объект: ${placemark.name}'),
-          duration: const Duration(seconds: 2),
-        ),
+      // Вместо SnackBar открываем модальное окно с детальной информацией
+      fm.showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: fm.Colors.transparent,
+        builder: (context) => _ObjectDetailsSheet(placemark: placemark),
       );
     }
   }
@@ -489,6 +489,233 @@ class _MapSearchBar extends fm.StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ObjectDetailsSheet extends fm.StatefulWidget {
+  final PlacemarkData placemark;
+
+  const _ObjectDetailsSheet({required this.placemark});
+
+  @override
+  fm.State<_ObjectDetailsSheet> createState() => _ObjectDetailsSheetState();
+}
+
+class _ObjectDetailsSheetState extends fm.State<_ObjectDetailsSheet>
+    with fm.SingleTickerProviderStateMixin {
+  late fm.TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = fm.TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  fm.Widget build(fm.BuildContext context) {
+    return fm.DraggableScrollableSheet(
+      initialChildSize: 0.9,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return fm.Container(
+          decoration: const fm.BoxDecoration(
+            color: fm.Colors.white,
+            borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
+          ),
+          child: fm.Column(
+            crossAxisAlignment: fm.CrossAxisAlignment.stretch,
+            children: [
+              // Ручка для перетаскивания
+              fm.Center(
+                child: fm.Container(
+                  margin: const fm.EdgeInsets.only(top: 8, bottom: 8),
+                  width: 40,
+                  height: 4,
+                  decoration: fm.BoxDecoration(
+                    color: fm.Colors.grey.shade300,
+                    borderRadius: fm.BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+
+              // Фотография объекта или заглушка
+              fm.Container(
+                height: 200,
+                color: fm.Colors.grey.shade200,
+                child: widget.placemark.photoUrls.isNotEmpty
+                    ? fm.Image.network(
+                        widget.placemark.photoUrls.first,
+                        fit: fm.BoxFit.cover,
+                        errorBuilder: (ctx, err, stack) =>
+                            _buildNoPhotoPlaceholder(),
+                      )
+                    : _buildNoPhotoPlaceholder(),
+              ),
+
+              // Информация об объекте
+              fm.Padding(
+                padding: const fm.EdgeInsets.all(16),
+                child: fm.Column(
+                  crossAxisAlignment: fm.CrossAxisAlignment.start,
+                  children: [
+                    // Название объекта
+                    fm.Text(
+                      widget.placemark.name,
+                      style: fm.Theme.of(context).textTheme.headlineMedium,
+                    ),
+
+                    // Описание объекта
+                    fm.Text(
+                      widget.placemark.description,
+                      style:
+                          fm.Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: fm.Colors.grey.shade600,
+                              ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Вкладки (табы)
+              fm.TabBar(
+                controller: _tabController,
+                labelColor: fm.Colors.blue.shade900,
+                unselectedLabelColor: fm.Colors.grey,
+                tabs: const [
+                  fm.Tab(text: 'Описание'),
+                  fm.Tab(text: 'Теги'),
+                ],
+              ),
+
+              // Содержимое вкладок
+              fm.Expanded(
+                child: fm.TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Вкладка "Описание"
+                    fm.ListView(
+                      controller: scrollController,
+                      padding: const fm.EdgeInsets.all(16),
+                      children: [
+                        // Адрес
+                        fm.Row(
+                          crossAxisAlignment: fm.CrossAxisAlignment.start,
+                          children: [
+                            const fm.Icon(fm.Icons.location_on,
+                                color: fm.Colors.black),
+                            const fm.SizedBox(width: 16),
+                            fm.Expanded(
+                              child: fm.Column(
+                                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                                children: [
+                                  fm.Text('Адрес',
+                                      style: fm.Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                  fm.Text('Адрес не указан',
+                                      style: const fm.TextStyle(
+                                          color: fm.Colors.grey)),
+                                  fm.TextButton(
+                                    onPressed: () {
+                                      // TODO: Реализовать открытие маршрута
+                                      dev.log(
+                                          'Открытие маршрута к объекту: ${widget.placemark.name}');
+                                    },
+                                    style: fm.TextButton.styleFrom(
+                                      padding: fm.EdgeInsets.zero,
+                                      alignment: fm.Alignment.centerLeft,
+                                    ),
+                                    child: const fm.Text('Маршрут'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        fm.Divider(color: fm.Colors.grey.shade300),
+
+                        // Контакты
+                        fm.Row(
+                          crossAxisAlignment: fm.CrossAxisAlignment.start,
+                          children: [
+                            const fm.Icon(fm.Icons.phone,
+                                color: fm.Colors.black),
+                            const fm.SizedBox(width: 16),
+                            fm.Expanded(
+                              child: fm.Column(
+                                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                                children: [
+                                  fm.Text('Контакты',
+                                      style: fm.Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                  fm.Text('Телефон не указан',
+                                      style: const fm.TextStyle(
+                                          color: fm.Colors.grey)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+
+                    // Вкладка "Теги"
+                    fm.ListView(
+                      controller: scrollController,
+                      padding: const fm.EdgeInsets.all(16),
+                      children: [
+                        fm.Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: widget.placemark.tags.isEmpty
+                              ? [
+                                  const fm.Chip(
+                                      label: fm.Text('Теги не указаны'))
+                                ]
+                              : widget.placemark.tags
+                                  .map((tag) => fm.Chip(label: fm.Text(tag)))
+                                  .toList(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  fm.Widget _buildNoPhotoPlaceholder() {
+    return fm.Center(
+      child: fm.Column(
+        mainAxisAlignment: fm.MainAxisAlignment.center,
+        children: [
+          fm.Opacity(
+            opacity: 0.3, // добавляем 50% прозрачности
+            child: fm.Image.asset(
+              'assets/images/no_photo.png',
+              width: 64,
+              height: 64,
+            ),
+          ),
+          const fm.SizedBox(height: 8),
+          fm.Text('Нет фото',
+              style: fm.TextStyle(color: fm.Colors.grey.withOpacity(0.5))),
+        ],
       ),
     );
   }
