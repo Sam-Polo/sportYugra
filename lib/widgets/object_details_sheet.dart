@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' as fm;
 import 'dart:developer' as dev;
 import '../data/placemarks/placemark_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Виджет для отображения детальной страницы объекта с фотогалереей
 class ObjectDetailsSheet extends fm.StatefulWidget {
@@ -221,11 +222,9 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   // Если есть адрес, показываем кнопку маршрута
                                   if (widget.placemark.address != null)
                                     fm.TextButton(
-                                      onPressed: () {
-                                        // TODO: Реализовать открытие маршрута
-                                        dev.log(
-                                            'Открытие маршрута к объекту: ${widget.placemark.name}');
-                                      },
+                                      onPressed: () => _launchRoute(
+                                          widget.placemark.location.latitude,
+                                          widget.placemark.location.longitude),
                                       style: fm.TextButton.styleFrom(
                                         padding: fm.EdgeInsets.zero,
                                         alignment: fm.Alignment.centerLeft,
@@ -271,11 +270,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   if (widget.placemark.phone != null)
                                     fm.TextButton(
                                       onPressed: () {
-                                        final phoneUri =
-                                            'tel:${widget.placemark.phone!.replaceAll(RegExp(r'\D'), '')}';
-                                        dev.log(
-                                            'Открытие номера телефона: $phoneUri');
-                                        // TODO: реализовать звонок (может потребоваться дополнительный плагин)
+                                        _makePhoneCall(widget.placemark.phone!);
                                       },
                                       style: fm.TextButton.styleFrom(
                                         padding: fm.EdgeInsets.zero,
@@ -438,6 +433,74 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         },
       ),
     );
+  }
+
+  /// Добавляю новый приватный метод для запуска URL маршрута
+  Future<void> _launchRoute(double latitude, double longitude) async {
+    // URL для Яндекс Карт (построение маршрута от текущей позиции до указанных координат)
+    final yandexMapsUrl = Uri.parse(
+        'yandexmaps://maps.yandex.ru/?rtext=~${latitude},${longitude}&rtt=auto');
+    // URL для 2ГИС (построение маршрута)
+    final dgisUrl = Uri.parse(
+        'dgis://2gis.ru/routeSearch/rsType/car/to/${longitude},${latitude}');
+    // URL для Google Карт (веб версия для построения маршрута)
+    final googleMapsUrl = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving');
+
+    dev.log('Попытка открыть маршрут для координат: $latitude, $longitude');
+
+    // Пытаемся открыть в Яндекс Картах
+    if (await canLaunchUrl(yandexMapsUrl)) {
+      dev.log('Открываем в Яндекс Картах: $yandexMapsUrl');
+      await launchUrl(yandexMapsUrl);
+    }
+    // Если Яндекс Карты не доступны, пытаемся открыть в 2ГИС
+    else if (await canLaunchUrl(dgisUrl)) {
+      dev.log('Открываем в 2ГИС: $dgisUrl');
+      await launchUrl(dgisUrl);
+    }
+    // Если ни Яндекс Карты, ни 2ГИС не доступны, пытаемся открыть в Google Картах (веб)
+    else if (await canLaunchUrl(googleMapsUrl)) {
+      dev.log('Открываем в Google Картах (веб): $googleMapsUrl');
+      await launchUrl(googleMapsUrl);
+    } else {
+      // Если ни одно приложение не найдено
+      dev.log('Не удалось найти ни одно приложение для построения маршрута.');
+      if (mounted) {
+        fm.ScaffoldMessenger.of(context).showSnackBar(
+          const fm.SnackBar(
+            content:
+                fm.Text('Не удалось найти приложение для построения маршрута.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Открывает приложение набора номера с предустановленным номером телефона
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    // Очищаем номер от всех символов кроме цифр
+    final cleanedNumber = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final phoneUri = Uri.parse('tel:$cleanedNumber');
+
+    dev.log('Попытка позвонить по номеру: $cleanedNumber через URI: $phoneUri');
+
+    // Проверяем, можно ли запустить URL для звонка
+    if (await canLaunchUrl(phoneUri)) {
+      dev.log('Открываем номеронабиратель для номера: $cleanedNumber');
+      await launchUrl(phoneUri);
+    } else {
+      dev.log('Не удалось открыть номеронабиратель для URI: $phoneUri');
+      if (mounted) {
+        fm.ScaffoldMessenger.of(context).showSnackBar(
+          const fm.SnackBar(
+            content: fm.Text('Не удалось открыть приложение для звонка'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 }
 
