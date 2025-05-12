@@ -6,8 +6,13 @@ import 'package:url_launcher/url_launcher.dart';
 /// Виджет для отображения детальной страницы объекта с фотогалереей
 class ObjectDetailsSheet extends fm.StatefulWidget {
   final PlacemarkData placemark;
+  final double? distance; // Расстояние до объекта
 
-  const ObjectDetailsSheet({super.key, required this.placemark});
+  const ObjectDetailsSheet({
+    super.key,
+    required this.placemark,
+    this.distance, // Опциональный параметр расстояния
+  });
 
   @override
   fm.State<ObjectDetailsSheet> createState() => _ObjectDetailsSheetState();
@@ -116,6 +121,17 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
 
     // Форматируем как +7 (XXX) XXX-XX-XX
     return '+${formattedNumber.substring(0, 1)} (${formattedNumber.substring(1, 4)}) ${formattedNumber.substring(4, 7)}-${formattedNumber.substring(7, 9)}-${formattedNumber.substring(9)}';
+  }
+
+  /// Форматирует расстояние для отображения
+  String _formatDistance(double distanceInMeters) {
+    if (distanceInMeters < 1000) {
+      // Если меньше километра, показываем в метрах
+      return '${distanceInMeters.round()} м';
+    } else {
+      // Если больше километра, показываем в километрах с одним знаком после запятой
+      return '${(distanceInMeters / 1000).toStringAsFixed(1)} км';
+    }
   }
 
   @override
@@ -278,6 +294,40 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                       ),
                                       child: const fm.Text('Позвонить'),
                                     ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        fm.Divider(color: fm.Colors.grey.shade300),
+
+                        // Расстояние до объекта
+                        fm.Row(
+                          crossAxisAlignment: fm.CrossAxisAlignment.start,
+                          children: [
+                            const fm.Icon(fm.Icons.directions,
+                                color: fm.Colors.black),
+                            const fm.SizedBox(width: 16),
+                            fm.Expanded(
+                              child: fm.Column(
+                                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                                children: [
+                                  fm.Text('Расстояние',
+                                      style: fm.Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                  // Показываем расстояние, если оно рассчитано
+                                  fm.Text(
+                                    widget.distance != null
+                                        ? _formatDistance(widget.distance!)
+                                        : 'Расстояние не определено',
+                                    style: fm.TextStyle(
+                                      color: widget.distance != null
+                                          ? fm.Colors.black87
+                                          : fm.Colors.grey,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),

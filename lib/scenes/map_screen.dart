@@ -1,10 +1,12 @@
 import 'dart:developer' as dev;
 import 'dart:math' as math;
+import 'dart:collection';
+import 'dart:core';
 
 import 'package:flutter/material.dart' as fm;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:permission_handler/permission_handler.dart';
-import 'package:yandex_maps_mapkit/mapkit.dart';
+import 'package:yandex_maps_mapkit/mapkit.dart' hide Map;
 import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/image.dart';
@@ -29,7 +31,7 @@ class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
     implements UserLocationObjectListener, MapCameraListener {
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
-  final bool _enableAutoCameraMove = false; // установите false для отключения
+  final bool _enableAutoCameraMove = true; // установите false для отключения
 
   MapWindow? _mapWindow;
   String? _mapStyle;
@@ -53,6 +55,12 @@ class _MapScreenState extends fm.State<MapScreen>
   // Порог зума, ниже которого названия меток будут скрыты
   // отредактируй это значение, чтобы изменить порог
   final double _textVisibilityZoomThreshold = 14.0;
+
+  // Текущее местоположение пользователя
+  Point? _userLocation;
+
+  // Словарь для хранения расстояний до объектов (ключ - идентификатор объекта)
+  final _objectDistances = HashMap<String, double>();
 
   @override
   void initState() {
@@ -145,11 +153,93 @@ class _MapScreenState extends fm.State<MapScreen>
     if (mapObject is PlacemarkMapObject) {
       final userData = mapObject.userData;
       if (userData != null && userData is PlacemarkData) {
+        // Обновляем расстояние до объекта перед показом информации
+        _updateDistanceToPlacemark(userData);
         _showPlacemarkInfo(userData, point);
         return true; // прекращаем обработку события
       }
     }
     return false; // продолжаем обработку события
+  }
+
+  // Обновляет расстояние до объекта на основе текущего положения пользователя
+  void _updateDistanceToPlacemark(PlacemarkData placemark) {
+    // Сначала пытаемся получить местоположение из CameraManager или из UserLocationView
+    Point? userLocation = _cameraManager?.userLocation ?? _userLocation;
+
+    // Если не удалось получить положение пользователя, используем положение камеры как запасной вариант
+    if (userLocation == null && _mapWindow == null) return;
+
+    try {
+      // Получаем координаты для расчета расстояния
+      final Point sourcePoint =
+          userLocation ?? _mapWindow!.map.cameraPosition.target;
+
+      // Рассчитываем расстояние между точками
+      final double distanceInMeters = _calculateDistance(
+          sourcePoint.latitude,
+          sourcePoint.longitude,
+          placemark.location.latitude,
+          placemark.location.longitude);
+
+      // Создаем уникальный идентификатор для объекта
+      final placemarkId = _getPlacemarkId(placemark);
+
+      // Сохраняем расстояние в словаре
+      _objectDistances[placemarkId] = distanceInMeters;
+
+      dev.log(
+          'Расстояние до объекта ${placemark.name} обновлено: ${distanceInMeters.toStringAsFixed(1)} м (${userLocation != null ? "от местоположения пользователя" : "от камеры"})');
+    } catch (e) {
+      dev.log('Ошибка при обновлении расстояния до объекта: $e');
+    }
+  }
+
+  // Обновляет расстояния до всех объектов
+  void _updateAllDistances() {
+    if (_mapObjectsManager == null) return;
+
+    _mapObjectsManager!.forEachPlacemark((placemarkObject, placemarkId) {
+      final userData = placemarkObject.userData;
+      if (userData != null && userData is PlacemarkData) {
+        _updateDistanceToPlacemark(userData);
+      }
+    });
+
+    dev.log('Расстояния до всех объектов обновлены');
+  }
+
+  // Создает уникальный идентификатор для объекта
+  String _getPlacemarkId(PlacemarkData placemark) {
+    return '${placemark.name}_${placemark.location.latitude}_${placemark.location.longitude}';
+  }
+
+  // Рассчитывает расстояние между двумя точками
+  double _calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
+    // Используем формулу гаверсинусов для расчета расстояния между точками
+    const double earthRadius = 6371000; // радиус Земли в метрах
+
+    // Перевод в радианы
+    final double lat1Rad = lat1 * math.pi / 180;
+    final double lon1Rad = lon1 * math.pi / 180;
+    final double lat2Rad = lat2 * math.pi / 180;
+    final double lon2Rad = lon2 * math.pi / 180;
+
+    // Разница координат
+    final double dLat = lat2Rad - lat1Rad;
+    final double dLon = lon2Rad - lon1Rad;
+
+    // Формула гаверсинусов
+    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1Rad) *
+            math.cos(lat2Rad) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+
+    // Расстояние в метрах
+    return earthRadius * c;
   }
 
   // Показывает информацию о плейсмарке
@@ -158,12 +248,21 @@ class _MapScreenState extends fm.State<MapScreen>
         'Показываем информацию о метке: ${placemark.name}, координаты: ${point.latitude}, ${point.longitude}');
 
     if (mounted) {
+      // Получаем идентификатор объекта
+      final placemarkId = _getPlacemarkId(placemark);
+
+      // Получаем расстояние до объекта из словаря
+      final distance = _objectDistances[placemarkId];
+
       // Вместо SnackBar открываем модальное окно с детальной информацией
       fm.showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: fm.Colors.transparent,
-        builder: (context) => ObjectDetailsSheet(placemark: placemark),
+        builder: (context) => ObjectDetailsSheet(
+          placemark: placemark,
+          distance: distance, // Передаем расстояние отдельным параметром
+        ),
       );
     }
   }
@@ -197,6 +296,9 @@ class _MapScreenState extends fm.State<MapScreen>
 
       // Отмечаем, что плейсмарки загружены
       _placemarksLoaded = true;
+
+      // Обновляем расстояния до всех объектов
+      _updateAllDistances();
 
       // Попытка переместить камеру после загрузки и получения местоположения
       _tryMoveCameraAfterLoadAndLocation();
@@ -400,12 +502,22 @@ class _MapScreenState extends fm.State<MapScreen>
   void onObjectRemoved(UserLocationView view) {}
 
   @override
-  void onObjectUpdated(UserLocationView view, ObjectEvent event) {}
+  void onObjectUpdated(UserLocationView view, ObjectEvent event) {
+    // Обновляем местоположение пользователя при любом изменении объекта
+    if (view.pin.geometry != null) {
+      _userLocation = view.pin.geometry;
+      dev.log(
+          'Местоположение пользователя обновлено: ${_userLocation?.latitude}, ${_userLocation?.longitude}');
+
+      // Обновляем расстояния до всех объектов при изменении местоположения
+      _updateAllDistances();
+    }
+  }
 
   // Реализация MapCameraListener
   @override
   void onCameraPositionChanged(
-    Map map,
+    dynamic map,
     CameraPosition cameraPosition,
     CameraUpdateReason cameraUpdateReason,
     bool finished,

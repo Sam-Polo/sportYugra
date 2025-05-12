@@ -23,6 +23,9 @@ class CameraManager {
 
   static const _mapDefaultZoom = 15.0;
 
+  // Геттер для получения текущего местоположения пользователя
+  Point? get userLocation => _location?.position;
+
   CameraManager(this._mapWindow, this._locationManager);
 
   void moveCameraToUserLocation() {

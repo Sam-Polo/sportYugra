@@ -8,6 +8,7 @@ class PlacemarkData {
   final List<String> tags;
   final String? address;
   final String? phone;
+  final double? distance;
 
   const PlacemarkData({
     required this.name,
@@ -17,5 +18,6 @@ class PlacemarkData {
     this.tags = const [],
     this.address,
     this.phone,
+    this.distance,
   });
 }
