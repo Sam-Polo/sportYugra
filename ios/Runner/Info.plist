@@ -57,5 +57,15 @@
 	<string>Приложению необходим доступ к геолокации для показа вашего местоположения на карте</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Приложению необходим доступ к геолокации для показа вашего местоположения на карте</string>
+
+	<!-- Разрешение на открытие сторонних приложений через URL-схемы -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>yandexmaps</string>
+		<string>dgis</string>
+		<string>comgooglemaps</string>
+		<string>tel</string>
+		<string>https</string>
+	</array>
 </dict>
 </plist>
