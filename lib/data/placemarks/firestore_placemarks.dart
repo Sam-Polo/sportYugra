@@ -37,10 +37,24 @@ class FirestorePlacemarks {
             tags = List<String>.from(data['tags'] as List<dynamic>);
           }
 
-          // Извлекаем photoUrls если они есть
+          // Извлекаем photo-urls если они есть - используем 'photo-urls' из Firestore
           List<String> photoUrls = [];
-          if (data['photoUrls'] != null) {
-            photoUrls = List<String>.from(data['photoUrls'] as List<dynamic>);
+          if (data['photo-urls'] != null) {
+            photoUrls = List<String>.from(data['photo-urls'] as List<dynamic>);
+          }
+
+          // Извлекаем адрес, если он есть
+          String? address;
+          if (data['address'] != null) {
+            address = data['address'] as String;
+            dev.log('Объект имеет адрес: $address');
+          }
+
+          // Извлекаем телефон, если он есть
+          String? phone;
+          if (data['phone'] != null) {
+            phone = data['phone'] as String;
+            dev.log('Объект имеет телефон: $phone');
           }
 
           // Создаем объект PlacemarkData
@@ -50,6 +64,8 @@ class FirestorePlacemarks {
             location: location,
             tags: tags,
             photoUrls: photoUrls,
+            address: address,
+            phone: phone,
           );
 
           placemarks.add(placemark);

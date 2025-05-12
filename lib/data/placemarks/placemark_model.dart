@@ -6,6 +6,8 @@ class PlacemarkData {
   final Point location;
   final List<String> photoUrls;
   final List<String> tags;
+  final String? address;
+  final String? phone;
 
   const PlacemarkData({
     required this.name,
@@ -13,5 +15,7 @@ class PlacemarkData {
     required this.location,
     this.photoUrls = const [],
     this.tags = const [],
+    this.address,
+    this.phone,
   });
 }
