@@ -1,0 +1,2 @@
+E:/study/flutter_SportYugra/sportyugra/android/app/.cxx/RelWithDebInfo/62112m37/x86_64/CMakeFiles/edit_cache.dir
+E:/study/flutter_SportYugra/sportyugra/android/app/.cxx/RelWithDebInfo/62112m37/x86_64/CMakeFiles/rebuild_cache.dir

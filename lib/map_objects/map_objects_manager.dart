@@ -12,6 +12,16 @@ class MapObjectsManager {
   final MapWindow _mapWindow;
   final Function(MapObject, Point) onMapObjectTap;
 
+  // Стиль текста для плейсмарков (вынесен для переиспользования)
+  static const TextStyle _placemarkTextStyle = TextStyle(
+    size: 12.0,
+    color: Color.fromARGB(255, 85, 6, 150), // видимый цвет
+    outlineColor: Color.fromARGB(255, 206, 191, 252), // видимый контур
+    outlineWidth: 1.4, // Более толстый контур для лучшей видимости
+    placement: TextStylePlacement.Bottom,
+    offset: 0.0,
+  );
+
   // Коллекция для плейсмарков
   late final MapObjectCollection _mapObjectCollection;
 
@@ -126,14 +136,7 @@ class MapObjectsManager {
 
     // Настройка стиля текста для лучшей читаемости на светлом фоне
     mapObject.setTextStyle(
-      const TextStyle(
-        size: 10.0,
-        color: Color.fromARGB(255, 5, 37, 88), // Черный цвет текста
-        outlineColor: Color.fromARGB(255, 96, 142, 196), // Темно-синий контур
-        outlineWidth: 1.5, // Более толстый контур для лучшей видимости
-        placement: TextStylePlacement.Bottom,
-        offset: 5.0,
-      ),
+      _placemarkTextStyle,
     );
 
     // Начальный масштаб для анимации (иконка будет увеличиваться от 0 до нормального размера)
@@ -249,36 +252,18 @@ class MapObjectsManager {
     final placemarkData = placemarkObject?.userData as PlacemarkData?;
 
     if (placemarkObject != null && placemarkData != null) {
-      // логируем попытку изменения видимости
-      dev.log(
-          '[setPlacemarkTextVisibility] Попытка установить видимость для $placemarkId на $visible');
-
       if (visible && !_placemarksWithVisibleText.contains(placemarkId)) {
         // показываем текст, если нужно и он сейчас скрыт
         placemarkObject.setText(placemarkData.name);
         // переустанавливаем стиль текста, чтобы убедиться, что он применился с видимым цветом
         placemarkObject.setTextStyle(
-          const TextStyle(
-            size: 10.0,
-            color: Color.fromARGB(255, 5, 37, 88), // видимый цвет
-            outlineColor: Color.fromARGB(255, 96, 142, 196), // видимый контур
-            outlineWidth: 1.5,
-            placement: TextStylePlacement.Bottom,
-            offset: 5.0,
-          ),
+          _placemarkTextStyle,
         );
         _placemarksWithVisibleText.add(placemarkId);
-        dev.log(
-            '[setPlacemarkTextVisibility] Текст показан для $placemarkId'); // для отладки
       } else if (!visible && _placemarksWithVisibleText.contains(placemarkId)) {
         // скрываем текст, если нужно и он сейчас виден
         placemarkObject.setText(''); // устанавливаем пустую строку для скрытия
         _placemarksWithVisibleText.remove(placemarkId);
-        dev.log(
-            '[setPlacemarkTextVisibility] Текст скрыт для $placemarkId'); // для отладки
-      } else {
-        dev.log(
-            '[setPlacemarkTextVisibility] Видимость для $placemarkId уже в нужном состоянии ($visible), изменений нет.'); // для отладки
       }
     } else {
       dev.log(

@@ -247,7 +247,7 @@ class _MapScreenState extends fm.State<MapScreen>
   // Обновляет видимость текста у всех плейсмарков в зависимости от уровня зума
   void _updatePlacemarkTextVisibility(double currentZoom) {
     dev.log(
-        '[MapScreenState] _updatePlacemarkTextVisibility called with zoom: $currentZoom'); // лог вызова метода
+        '[MapScreenState] _updatePlacemarkTextVisibility called with zoom: $currentZoom, coords: ${(_mapWindow?.map.cameraPosition.target.latitude)?.toStringAsFixed(4)}, ${(_mapWindow?.map.cameraPosition.target.longitude)?.toStringAsFixed(4)}'); // лог вызова метода с координатами
     // если менеджер объектов не инициализирован, выходим
     if (_mapObjectsManager == null) return;
 
@@ -409,8 +409,6 @@ class _MapScreenState extends fm.State<MapScreen>
     CameraUpdateReason cameraUpdateReason,
     bool finished,
   ) {
-    dev.log(
-        '[MapScreenState] onCameraPositionChanged called, zoom: ${cameraPosition.zoom}, finished: $finished'); // лог слушателя
     // вызываем нашу логику обновления видимости текста
     _updatePlacemarkTextVisibility(cameraPosition.zoom);
   }
@@ -470,21 +468,21 @@ class _MapSearchBar extends fm.StatelessWidget {
         ),
         padding: const fm.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: fm.BoxDecoration(
-          color: fm.Colors.black.withOpacity(0.7),
+          color: const fm.Color(0xBF090230),
           borderRadius: fm.BorderRadius.circular(12),
         ),
         child: fm.Row(
           children: [
             const fm.Icon(
               fm.Icons.search,
-              color: fm.Colors.grey,
+              color: fm.Colors.white,
               size: 24,
             ),
             const fm.SizedBox(width: 8),
             fm.Text(
               'Поиск',
               style: fm.TextStyle(
-                color: fm.Colors.grey,
+                color: fm.Colors.white,
                 fontSize: 18,
                 fontWeight: fm.FontWeight.normal,
               ),

@@ -2284,7 +2284,7 @@
       "elements": "label.text.outline",
       "stylers": [
           {
-              "color": "#ffffff"
+              "color": "#abc6f5"
           },
           {
               "opacity": 0.5
@@ -2393,7 +2393,7 @@
       "elements": "label.text.outline",
       "stylers": [
           {
-              "color": "#ffffff"
+              "color": "#abc6f5"
           },
           {
               "opacity": 0.5
@@ -6301,7 +6301,6 @@
   {
       "tags": {
           "any": [
-              "address",
               "road_7",
               "road_limited",
               "road_unclassified",
