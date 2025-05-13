@@ -11,6 +11,7 @@ import 'package:yandex_maps_mapkit/mapkit_factory.dart';
 import 'package:yandex_maps_mapkit/yandex_map.dart';
 import 'package:yandex_maps_mapkit/image.dart';
 import '../camera/camera_manager.dart';
+import '../scenes/search_screen.dart';
 import '../permissions/permission_manager.dart';
 import '../widgets/map_control_button.dart';
 import '../listeners/map_object_tap_listener.dart';
@@ -19,6 +20,108 @@ import '../data/placemarks/firestore_placemarks.dart';
 import '../map_objects/map_objects_manager.dart';
 import '../widgets/object_details_sheet.dart';
 import 'dart:async';
+
+/// Виджет поисковой строки, который может работать как кнопка или поле ввода
+class MapSearchBar extends fm.StatelessWidget {
+  final fm.TextEditingController? controller;
+  final fm.FocusNode? focusNode;
+  final bool autoFocus;
+  final void Function(String)? onChanged;
+  final bool isButton;
+  final fm.VoidCallback? onTap;
+
+  const MapSearchBar({
+    super.key,
+    this.controller,
+    this.focusNode,
+    this.autoFocus = false,
+    this.onChanged,
+    this.isButton = false,
+    this.onTap,
+  });
+
+  @override
+  fm.Widget build(fm.BuildContext context) {
+    return fm.Material(
+      color: fm.Colors.transparent,
+      child: fm.InkWell(
+        onTap: isButton ? onTap : null,
+        child: fm.Container(
+          decoration: fm.BoxDecoration(
+            color: isButton ? const fm.Color(0xBF090230) : fm.Colors.white,
+            borderRadius: fm.BorderRadius.circular(12),
+          ),
+          child: isButton
+              ? _buildButtonContent(context)
+              : _buildTextFieldContent(context),
+        ),
+      ),
+    );
+  }
+
+  /// Строит содержимое MapSearchBar в режиме поля ввода (внутренняя часть)
+  fm.Widget _buildTextFieldContent(fm.BuildContext context) {
+    return fm.Container(
+      padding: const fm.EdgeInsets.symmetric(
+          horizontal: 12, vertical: 8), // Сохраняем padding внутри
+      child: fm.Row(
+        children: [
+          const fm.Icon(
+            fm.Icons.search,
+            color: fm.Colors.black, // <- Черная иконка для белого фона
+            size: 24,
+          ),
+          const fm.SizedBox(width: 8),
+          fm.Expanded(
+            child: fm.TextField(
+              controller: controller,
+              focusNode: focusNode,
+              autofocus: autoFocus,
+              onChanged: onChanged,
+              style: const fm.TextStyle(
+                color: fm.Colors.black,
+                fontSize: 18,
+                fontWeight: fm.FontWeight.normal,
+              ),
+              decoration: const fm.InputDecoration(
+                hintText: 'Поиск',
+                hintStyle: fm.TextStyle(color: fm.Colors.grey),
+                border: fm.InputBorder.none,
+                contentPadding: fm.EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Строит содержимое MapSearchBar в режиме кнопки (внутренняя часть)
+  fm.Widget _buildButtonContent(fm.BuildContext context) {
+    return fm.Container(
+      padding: const fm.EdgeInsets.symmetric(
+          horizontal: 12, vertical: 8), // Сохраняем padding внутри
+      child: fm.Row(
+        children: [
+          const fm.Icon(
+            fm.Icons.search,
+            color: fm.Colors.white,
+            size: 24,
+          ),
+          const fm.SizedBox(width: 8),
+          fm.Text(
+            'Поиск', // Текст кнопки
+            style: const fm.TextStyle(
+              color: fm.Colors.white,
+              fontSize: 18,
+              fontWeight: fm.FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class MapScreen extends fm.StatefulWidget {
   const MapScreen({super.key});
@@ -31,7 +134,7 @@ class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
     implements UserLocationObjectListener, MapCameraListener {
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
-  final bool _enableAutoCameraMove = true; // установите false для отключения
+  final bool _enableAutoCameraMove = false; // установите false для отключения
 
   MapWindow? _mapWindow;
   String? _mapStyle;
@@ -394,10 +497,44 @@ class _MapScreenState extends fm.State<MapScreen>
           ),
           // Search bar
           fm.Positioned(
+            // Positioned задает положение для всего блока (Padding + Hero + MapSearchBar)
             left: 0,
             right: 0,
-            top: 0,
-            child: const _MapSearchBar(),
+            top: 0, // Прижимаем к верху
+            child: fm.Padding(
+              padding: const fm.EdgeInsets.only(left: 0, right: 0, top: 40),
+              child: fm.Hero(
+                tag: 'searchBarHero',
+                child: fm.Container(
+                  margin: const fm.EdgeInsets.symmetric(horizontal: 16),
+                  child: MapSearchBar(
+                    isButton: true,
+                    onTap: () {
+                      dev.log('Search bar tapped, initiating transition...');
+                      fm.Navigator.of(context).push(
+                        fm.PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const SearchScreen(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            // Анимация затемнения фона MapScreen
+                            return fm.FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                          transitionDuration: const Duration(milliseconds: 600),
+                          reverseTransitionDuration:
+                              const Duration(milliseconds: 600),
+                          opaque: false,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
           ),
           // Индикатор загрузки
           if (_isLoading)
@@ -564,45 +701,5 @@ class _MapScreenState extends fm.State<MapScreen>
             duration: 0.2), // Плавная анимация 0.2 сек
       );
     }
-  }
-}
-
-class _MapSearchBar extends fm.StatelessWidget {
-  const _MapSearchBar();
-
-  @override
-  fm.Widget build(fm.BuildContext context) {
-    return fm.SafeArea(
-      child: fm.Container(
-        margin: const fm.EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-        ),
-        padding: const fm.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: fm.BoxDecoration(
-          color: const fm.Color(0xBF090230),
-          borderRadius: fm.BorderRadius.circular(12),
-        ),
-        child: fm.Row(
-          children: [
-            const fm.Icon(
-              fm.Icons.search,
-              color: fm.Colors.white,
-              size: 24,
-            ),
-            const fm.SizedBox(width: 8),
-            fm.Text(
-              'Поиск',
-              style: fm.TextStyle(
-                color: fm.Colors.white,
-                fontSize: 18,
-                fontWeight: fm.FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
