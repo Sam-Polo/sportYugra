@@ -102,11 +102,10 @@ class FirestoreTags {
         final parentId = tag.parent!.id;
         if (_tagsCache.containsKey(parentId)) {
           tag.parentTag = _tagsCache[parentId];
-          dev.log(
-              'Установлен родитель для ${tag.name}: ${tag.parentTag?.name}');
+          dev.log('Установлен родитель для ${tag.id} - ${tag.parentTag?.id}');
         } else {
           dev.log(
-              'ВНИМАНИЕ: Родительский тег не найден: $parentId для ${tag.name}');
+              'ВНИМАНИЕ: Родительский тег не найден: $parentId для ${tag.id}');
         }
       }
 
@@ -116,9 +115,9 @@ class FirestoreTags {
         if (_tagsCache.containsKey(childId)) {
           tag.childrenTags.add(_tagsCache[childId]!);
           dev.log(
-              'Добавлен дочерний тег ${_tagsCache[childId]!.name} для ${tag.name}');
+              'Добавлен дочерний тег ${_tagsCache[childId]!.id} для ${tag.id}');
         } else {
-          dev.log('ВНИМАНИЕ: Дочерний тег не найден: $childId для ${tag.name}');
+          dev.log('ВНИМАНИЕ: Дочерний тег не найден: $childId для ${tag.id}');
         }
       }
     }
@@ -135,7 +134,7 @@ class FirestoreTags {
         final parentId = tag.parent!.id;
         if (!_tagsCache.containsKey(parentId)) {
           dev.log(
-              'ОШИБКА: Родительский тег не существует: $parentId для ${tag.name}');
+              'ОШИБКА: Родительский тег не существует: $parentId для ${tag.id}');
           errorCount++;
         } else {
           // Проверяем, что родитель содержит этот тег в своих children
@@ -143,7 +142,7 @@ class FirestoreTags {
           final hasChildRef = parentTag.children.any((ref) => ref.id == tag.id);
           if (!hasChildRef) {
             dev.log(
-                'ОШИБКА: Родитель ${parentTag.name} не содержит ссылку на дочерний тег ${tag.name}');
+                'ОШИБКА: Родитель ${parentTag.id} не содержит ссылку на дочерний тег ${tag.id}');
             errorCount++;
           }
         }
@@ -153,15 +152,14 @@ class FirestoreTags {
       for (final childRef in tag.children) {
         final childId = childRef.id;
         if (!_tagsCache.containsKey(childId)) {
-          dev.log(
-              'ОШИБКА: Дочерний тег не существует: $childId для ${tag.name}');
+          dev.log('ОШИБКА: Дочерний тег не существует: $childId для ${tag.id}');
           errorCount++;
         } else {
           // Проверяем, что дочерний тег указывает на этот тег как на родителя
           final childTag = _tagsCache[childId]!;
           if (childTag.parent == null || childTag.parent!.id != tag.id) {
             dev.log(
-                'ОШИБКА: Дочерний тег ${childTag.name} не указывает на ${tag.name} как на родителя');
+                'ОШИБКА: Дочерний тег ${childTag.id} не указывает на ${tag.id} как на родителя');
             errorCount++;
           }
         }
