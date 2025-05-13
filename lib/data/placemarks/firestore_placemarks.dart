@@ -6,81 +6,80 @@ import 'dart:developer' as dev;
 class FirestorePlacemarks {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // получение всех спортивных объектов из Firestore
+  /// Загружает спортивные объекты из Firestore
   Future<List<PlacemarkData>> getSportObjects() async {
     try {
-      // Получаем снимок коллекции
-      final QuerySnapshot snapshot =
-          await _firestore.collection('sportobjects').get();
+      final snapshot = await _firestore.collection('sportobjects').get();
 
-      // Преобразуем документы в модели
-      final List<PlacemarkData> placemarks = [];
+      final placemarks = <PlacemarkData>[];
 
       for (final doc in snapshot.docs) {
         try {
-          final data = doc.data() as Map<String, dynamic>;
+          final data = doc.data();
 
-          // Извлекаем данные из документа
-          final String name = data['name'] as String;
-          final String description = data['description'] as String;
-
-          // Получаем GeoPoint из Firestore и конвертируем в Point для Yandex MapKit
-          final GeoPoint geoPoint = data['location'] as GeoPoint;
-          final Point location = Point(
-            latitude: geoPoint.latitude,
-            longitude: geoPoint.longitude,
-          );
-
-          // Извлекаем tags если они есть
-          List<String> tags = [];
-          if (data['tags'] != null) {
-            tags = List<String>.from(data['tags'] as List<dynamic>);
+          // Извлекаем координаты
+          final geoPoint = data['location'] as GeoPoint?;
+          if (geoPoint == null) {
+            dev.log('Пропускаем объект без координат: ${doc.id}');
+            continue;
           }
 
-          // Извлекаем photo-urls если они есть - используем 'photo-urls' из Firestore
-          List<String> photoUrls = [];
-          if (data['photo-urls'] != null) {
-            photoUrls = List<String>.from(data['photo-urls'] as List<dynamic>);
+          // Извлекаем photo-urls если они есть
+          List<String>? photoUrls;
+          if (data.containsKey('photo-urls')) {
+            try {
+              photoUrls = List<String>.from(data['photo-urls'] ?? []);
+              dev.log(
+                  'Найдены фото для объекта ${doc.id}: ${photoUrls.length}');
+            } catch (e) {
+              dev.log('Ошибка при извлечении photo-urls: $e');
+            }
           }
 
-          // Извлекаем адрес, если он есть
+          // Извлекаем адрес если он есть
           String? address;
-          if (data['address'] != null) {
-            address = data['address'] as String;
-            dev.log('Объект имеет адрес: $address');
+          if (data.containsKey('address')) {
+            address = data['address'] as String?;
+            if (address != null) {
+              dev.log('Найден адрес для объекта ${doc.id}');
+            }
           }
 
-          // Извлекаем телефон, если он есть
+          // Извлекаем телефон если он есть
           String? phone;
-          if (data['phone'] != null) {
-            phone = data['phone'] as String;
-            dev.log('Объект имеет телефон: $phone');
+          if (data.containsKey('phone')) {
+            phone = data['phone'] as String?;
+            if (phone != null) {
+              dev.log('Найден телефон для объекта ${doc.id}');
+            }
           }
 
           // Создаем объект PlacemarkData
-          final PlacemarkData placemark = PlacemarkData(
-            name: name,
-            description: description,
-            location: location,
-            tags: tags,
+          final placemark = PlacemarkData(
+            id: doc.id, // Добавляем id документа
+            name: data['name'] as String? ?? 'Неизвестный объект',
+            description: data['description'] as String?,
+            location: Point(
+              latitude: geoPoint.latitude,
+              longitude: geoPoint.longitude,
+            ),
+            tags: List<String>.from(data['tagNames'] ?? []),
             photoUrls: photoUrls,
             address: address,
             phone: phone,
           );
 
           placemarks.add(placemark);
-          dev.log('Загружен объект: $name');
         } catch (e) {
           dev.log('Ошибка при обработке документа ${doc.id}: $e');
-          // Пропускаем проблемный документ и продолжаем
         }
       }
 
-      dev.log('Загружено ${placemarks.length} объектов из Firestore');
+      dev.log(
+          'Загружено ${placemarks.length} спортивных объектов из Firestore');
       return placemarks;
     } catch (e) {
-      // Логирование ошибки
-      dev.log('Ошибка при получении данных из Firestore: $e');
+      dev.log('Ошибка при загрузке спортивных объектов: $e');
       return [];
     }
   }

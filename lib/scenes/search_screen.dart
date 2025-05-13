@@ -2,6 +2,8 @@
 import 'package:flutter/material.dart' as fm;
 import 'dart:developer' as dev;
 import 'map_screen.dart'; // <- Импортируем MapScreen для доступа к MapSearchBar
+import '../data/tags/firestore_tags.dart';
+import '../data/tags/tag_model.dart';
 
 class SearchScreen extends fm.StatefulWidget {
   const SearchScreen({super.key});
@@ -17,6 +19,14 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   // Флаг для отслеживания, установлен ли фокус
   bool _focusRequested = false;
+
+  // Сервис для работы с тегами
+  final _firestoreTags = FirestoreTags();
+
+  // Состояние загрузки и данные тегов
+  bool _isLoading = false;
+  List<TagData> _rootTags = [];
+  String _tagsHierarchyText = '';
 
   @override
   void initState() {
@@ -36,6 +46,41 @@ class _SearchScreenState extends fm.State<SearchScreen> {
         });
       }
     });
+
+    // Загружаем теги
+    _loadTags();
+  }
+
+  /// Загружает теги из Firestore
+  Future<void> _loadTags() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
+
+    try {
+      // Загружаем все теги
+      final rootTags = await _firestoreTags.loadAllTags();
+
+      // Получаем текстовое представление иерархии
+      final hierarchyText = _firestoreTags.getTagsHierarchyString();
+
+      if (mounted) {
+        setState(() {
+          _rootTags = rootTags;
+          _tagsHierarchyText = hierarchyText;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      dev.log('Ошибка при загрузке тегов: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -79,19 +124,63 @@ class _SearchScreenState extends fm.State<SearchScreen> {
               ),
             ),
           ),
-          // TODO: Add search results area below the search bar
+          // Область для отображения иерархии тегов
           fm.Expanded(
-            // <- Растягиваем оставшееся пространство
-            child: fm.Center(
-              child: _searchController.text.isEmpty
-                  ? const fm.Text(
-                      'Введите запрос для поиска',
-                      style: fm.TextStyle(color: fm.Colors.white54),
-                    )
-                  : fm.Text(
-                      'Поиск по запросу: ${_searchController.text}',
-                      style: const fm.TextStyle(color: fm.Colors.white),
+            child: _isLoading
+                ? const fm.Center(
+                    child: fm.CircularProgressIndicator(
+                      color: fm.Colors.white,
                     ),
+                  )
+                : _buildTagsHierarchyView(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Строит представление иерархии тегов
+  fm.Widget _buildTagsHierarchyView() {
+    if (_rootTags.isEmpty) {
+      return const fm.Center(
+        child: fm.Text(
+          'Теги не найдены',
+          style: fm.TextStyle(color: fm.Colors.white54),
+        ),
+      );
+    }
+
+    return fm.Padding(
+      padding: const fm.EdgeInsets.all(16.0),
+      child: fm.Column(
+        crossAxisAlignment: fm.CrossAxisAlignment.start,
+        children: [
+          const fm.Text(
+            'Иерархия тегов:',
+            style: fm.TextStyle(
+              color: fm.Colors.white,
+              fontSize: 18,
+              fontWeight: fm.FontWeight.bold,
+            ),
+          ),
+          const fm.SizedBox(height: 16),
+          fm.Expanded(
+            child: fm.Container(
+              padding: const fm.EdgeInsets.all(12),
+              decoration: fm.BoxDecoration(
+                color: fm.Colors.white10,
+                borderRadius: fm.BorderRadius.circular(8),
+              ),
+              child: fm.SingleChildScrollView(
+                child: fm.Text(
+                  _tagsHierarchyText,
+                  style: const fm.TextStyle(
+                    color: fm.Colors.white,
+                    fontFamily: 'monospace',
+                    height: 1.5,
+                  ),
+                ),
+              ),
             ),
           ),
         ],

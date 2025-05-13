@@ -1,23 +1,24 @@
 import 'package:yandex_maps_mapkit/mapkit.dart';
 
+/// Модель данных для плейсмарка на карте
 class PlacemarkData {
+  final String id; // идентификатор объекта
   final String name;
-  final String description;
+  final String? description;
   final Point location;
-  final List<String> photoUrls;
   final List<String> tags;
-  final String? address;
-  final String? phone;
-  final double? distance;
+  final List<String>? photoUrls; // URLs фотографий объекта
+  final String? address; // Адрес объекта
+  final String? phone; // Телефон объекта
 
-  const PlacemarkData({
+  PlacemarkData({
+    required this.id,
     required this.name,
-    required this.description,
+    this.description,
     required this.location,
-    this.photoUrls = const [],
     this.tags = const [],
+    this.photoUrls,
     this.address,
     this.phone,
-    this.distance,
   });
 }

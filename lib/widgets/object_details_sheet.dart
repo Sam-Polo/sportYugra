@@ -2,6 +2,8 @@ import 'package:flutter/material.dart' as fm;
 import 'dart:developer' as dev;
 import '../data/placemarks/placemark_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../data/tags/firestore_tags.dart';
+import '../data/tags/tag_model.dart';
 
 /// Виджет для отображения детальной страницы объекта с фотогалереей
 class ObjectDetailsSheet extends fm.StatefulWidget {
@@ -27,6 +29,11 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   // Список обработчиков предзагрузки изображений для возможности отмены
   final List<fm.ImageStreamListener> _imagePrecacheHandlers = [];
 
+  // Для работы с тегами
+  final _firestoreTags = FirestoreTags();
+  List<TagData> _objectTags = [];
+  bool _tagsLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,16 +41,20 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
 
     // Предзагружаем все фото объекта при открытии страницы
     _precacheAllImages();
+
+    // Загружаем теги объекта
+    _loadObjectTags();
   }
 
   /// Предзагрузка всех изображений для галереи
   void _precacheAllImages() {
-    if (widget.placemark.photoUrls.isEmpty) return;
+    if (widget.placemark.photoUrls == null ||
+        widget.placemark.photoUrls!.isEmpty) return;
 
     dev.log(
-        'Начинаем предзагрузку ${widget.placemark.photoUrls.length} изображений');
+        'Начинаем предзагрузку ${widget.placemark.photoUrls!.length} изображений');
 
-    for (final photoUrl in widget.placemark.photoUrls) {
+    for (final photoUrl in widget.placemark.photoUrls!) {
       final imageProvider = fm.NetworkImage(photoUrl);
 
       // Создаем слушателя загрузки изображения
@@ -84,12 +95,14 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   void _cancelImagePreloading() {
     dev.log('Отмена всех незавершенных загрузок изображений');
 
+    if (widget.placemark.photoUrls == null) return;
+
     for (int i = 0;
-        i < widget.placemark.photoUrls.length &&
+        i < widget.placemark.photoUrls!.length &&
             i < _imagePrecacheHandlers.length;
         i++) {
       try {
-        final imageProvider = fm.NetworkImage(widget.placemark.photoUrls[i]);
+        final imageProvider = fm.NetworkImage(widget.placemark.photoUrls![i]);
         final imageStream =
             imageProvider.resolve(const fm.ImageConfiguration());
         imageStream.removeListener(_imagePrecacheHandlers[i]);
@@ -132,6 +145,89 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       // Если больше километра, показываем в километрах с одним знаком после запятой
       return '${(distanceInMeters / 1000).toStringAsFixed(1)} км';
     }
+  }
+
+  /// Загружает теги для объекта
+  Future<void> _loadObjectTags() async {
+    if (!mounted) return;
+
+    setState(() {
+      _tagsLoading = true;
+    });
+
+    try {
+      // Используем ID объекта для загрузки тегов
+      // Примечание: здесь предполагается, что у PlacemarkData есть поле id
+      // Если его нет, нужно добавить его в модель или использовать другой идентификатор
+      final String objectId = widget.placemark.id ?? '';
+
+      if (objectId.isEmpty) {
+        dev.log('Невозможно загрузить теги: ID объекта пуст');
+        return;
+      }
+
+      final tags = await _firestoreTags.loadTagsForObject(objectId);
+
+      if (mounted) {
+        setState(() {
+          _objectTags = tags;
+          _tagsLoading = false;
+        });
+      }
+    } catch (e) {
+      dev.log('Ошибка при загрузке тегов объекта: $e');
+      if (mounted) {
+        setState(() {
+          _tagsLoading = false;
+        });
+      }
+    }
+  }
+
+  /// Строит вкладку с тегами
+  fm.Widget _buildTagsTab() {
+    if (_tagsLoading) {
+      return const fm.Center(
+        child: fm.CircularProgressIndicator(),
+      );
+    }
+
+    if (_objectTags.isEmpty) {
+      return const fm.Center(
+        child: fm.Text('Теги не найдены'),
+      );
+    }
+
+    return fm.Padding(
+      padding: const fm.EdgeInsets.all(16.0),
+      child: fm.Column(
+        crossAxisAlignment: fm.CrossAxisAlignment.start,
+        children: [
+          const fm.Text(
+            'Теги объекта:',
+            style: fm.TextStyle(
+              fontSize: 16,
+              fontWeight: fm.FontWeight.bold,
+            ),
+          ),
+          const fm.SizedBox(height: 12),
+          fm.Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _objectTags.map((tag) => _buildTagChip(tag)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Строит чип для отображения тега
+  fm.Widget _buildTagChip(TagData tag) {
+    return fm.Chip(
+      label: fm.Text(tag.name),
+      backgroundColor: fm.Colors.blue.shade100,
+      labelStyle: fm.TextStyle(color: fm.Colors.blue.shade900),
+    );
   }
 
   @override
@@ -179,7 +275,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
 
                     // Описание объекта
                     fm.Text(
-                      widget.placemark.description,
+                      widget.placemark.description ?? 'Нет описания',
                       style:
                           fm.Theme.of(context).textTheme.titleMedium?.copyWith(
                                 color: fm.Colors.grey.shade600,
@@ -337,23 +433,9 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                     ),
 
                     // Вкладка "Теги"
-                    fm.ListView(
+                    fm.SingleChildScrollView(
                       controller: scrollController,
-                      padding: const fm.EdgeInsets.all(16),
-                      children: [
-                        fm.Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: widget.placemark.tags.isEmpty
-                              ? [
-                                  const fm.Chip(
-                                      label: fm.Text('Теги не указаны'))
-                                ]
-                              : widget.placemark.tags
-                                  .map((tag) => fm.Chip(label: fm.Text(tag)))
-                                  .toList(),
-                        ),
-                      ],
+                      child: _buildTagsTab(),
                     ),
                   ],
                 ),
@@ -368,7 +450,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   /// Возвращает виджет фотогалереи или заглушку "нет фото"
   fm.Widget _buildPhotoGallery() {
     // Если нет фотографий, показываем заглушку
-    if (widget.placemark.photoUrls.isEmpty) {
+    if (widget.placemark.photoUrls == null ||
+        widget.placemark.photoUrls!.isEmpty) {
       return fm.Container(
         height: 200,
         color: fm.Colors.grey.shade200,
@@ -384,7 +467,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
           // Слайдер с фотографиями
           fm.PageView.builder(
             controller: _photoPageController,
-            itemCount: widget.placemark.photoUrls.length,
+            itemCount: widget.placemark.photoUrls!.length,
             onPageChanged: (index) {
               setState(() {
                 _currentPhotoIndex = index;
@@ -394,7 +477,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
               return fm.GestureDetector(
                 onTap: () => _openFullScreenGallery(index),
                 child: fm.Image.network(
-                  widget.placemark.photoUrls[index],
+                  widget.placemark.photoUrls![index],
                   fit: fm.BoxFit.cover,
                   errorBuilder: (ctx, err, stack) => _buildNoPhotoPlaceholder(),
                   loadingBuilder: (context, child, loadingProgress) {
@@ -411,14 +494,15 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                   // Важно: устанавливаем правильный ключ на каждое изображение
                   // для предотвращения конфликтов кеширования
                   key: fm.ValueKey(
-                      'gallery_image_${widget.placemark.photoUrls[index]}'),
+                      'gallery_image_${widget.placemark.photoUrls![index]}'),
                 ),
               );
             },
           ),
 
           // Индикатор страниц для фотогалереи
-          if (widget.placemark.photoUrls.length > 1)
+          if (widget.placemark.photoUrls != null &&
+              widget.placemark.photoUrls!.length > 1)
             fm.Positioned(
               bottom: 8,
               left: 0,
@@ -426,7 +510,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
               child: fm.Row(
                 mainAxisAlignment: fm.MainAxisAlignment.center,
                 children: List.generate(
-                  widget.placemark.photoUrls.length,
+                  widget.placemark.photoUrls!.length,
                   (index) => fm.Container(
                     width: 8,
                     height: 8,
@@ -470,6 +554,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
 
   /// Открывает галерею на полный экран
   void _openFullScreenGallery(int initialIndex) {
+    if (widget.placemark.photoUrls == null) return;
+
     dev.log('Открываем полноэкранную галерею с фото #$initialIndex');
     fm.Navigator.of(context).push(
       fm.PageRouteBuilder(
@@ -477,7 +563,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         barrierColor: fm.Colors.black87,
         pageBuilder: (fm.BuildContext context, _, __) {
           return _FullScreenPhotoGallery(
-            photoUrls: widget.placemark.photoUrls,
+            photoUrls: widget.placemark.photoUrls!,
             initialIndex: initialIndex,
           );
         },
