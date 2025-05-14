@@ -157,9 +157,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
 
     try {
       // Используем ID объекта для загрузки тегов
-      // Примечание: здесь предполагается, что у PlacemarkData есть поле id
-      // Если его нет, нужно добавить его в модель или использовать другой идентификатор
-      final String objectId = widget.placemark.id ?? '';
+      final String objectId = widget.placemark.id;
 
       if (objectId.isEmpty) {
         dev.log('Невозможно загрузить теги: ID объекта пуст');
@@ -167,6 +165,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       }
 
       final tags = await _firestoreTags.loadTagsForObject(objectId);
+      dev.log('Загружено ${tags.length} тегов для объекта ${objectId}');
 
       if (mounted) {
         setState(() {
@@ -198,35 +197,198 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       );
     }
 
-    return fm.Padding(
+    return fm.SingleChildScrollView(
       padding: const fm.EdgeInsets.all(16.0),
       child: fm.Column(
         crossAxisAlignment: fm.CrossAxisAlignment.start,
         children: [
+          // Заголовок иерархии тегов
           const fm.Text(
             'Теги объекта:',
             style: fm.TextStyle(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: fm.FontWeight.bold,
             ),
           ),
-          const fm.SizedBox(height: 12),
-          fm.Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _objectTags.map((tag) => _buildTagChip(tag)).toList(),
-          ),
+          const fm.SizedBox(height: 16),
+
+          // Отображаем иерархию тегов
+          _buildTagsHierarchy(),
         ],
       ),
     );
   }
 
-  /// Строит чип для отображения тега
-  fm.Widget _buildTagChip(TagData tag) {
-    return fm.Chip(
-      label: fm.Text(tag.name),
-      backgroundColor: fm.Colors.blue.shade100,
-      labelStyle: fm.TextStyle(color: fm.Colors.blue.shade900),
+  /// Строит иерархическое представление тегов объекта
+  fm.Widget _buildTagsHierarchy() {
+    // Группируем теги по их уровням в иерархии
+    final Map<String, List<TagData>> tagsByParent = {};
+
+    // Проверяем, есть ли у тегов родительские теги, которых нет в списке тегов объекта
+    for (final tag in _objectTags) {
+      if (tag.parent != null) {
+        final parentId = tag.parent!.id;
+        final hasParentTag = _objectTags.any((t) => t.id == parentId);
+
+        if (!hasParentTag) {
+          // Проверяем случай, когда у тега есть родитель, но родительского тега нет в списке тегов объекта
+          dev.log(
+              'ПРЕДУПРЕЖДЕНИЕ: У тега ${tag.id} (${tag.name}) есть родитель $parentId, но родительский тег не найден в тегах объекта');
+        }
+      }
+    }
+
+    // Сначала находим все корневые теги (без родителя)
+    final rootTags = _objectTags.where((tag) => tag.parent == null).toList();
+
+    // Если корневых тегов нет, возвращаем сообщение
+    if (rootTags.isEmpty) {
+      dev.log('ВНИМАНИЕ: Не найдены корневые теги у объекта');
+      return const fm.Text(
+          'Не удалось построить иерархию тегов: не найдены корневые теги');
+    }
+
+    // Группируем все остальные теги по parentId
+    for (final tag in _objectTags) {
+      if (tag.parent != null) {
+        final parentId = tag.parent!.id;
+        tagsByParent.putIfAbsent(parentId, () => []).add(tag);
+      }
+    }
+
+    // Строим дерево, начиная с корневых тегов
+    return fm.Column(
+      crossAxisAlignment: fm.CrossAxisAlignment.start,
+      children: rootTags
+          .map((rootTag) => _buildTagHierarchyItem(rootTag, tagsByParent, 0))
+          .toList(),
+    );
+  }
+
+  /// Рекурсивно строит элемент иерархии тегов и его дочерние теги
+  fm.Widget _buildTagHierarchyItem(
+      TagData tag, Map<String, List<TagData>> tagsByParent, int level) {
+    // Получаем дочерние теги для текущего тега, если они есть
+    final childTags = tagsByParent[tag.id] ?? [];
+    final bool hasChildren = childTags.isNotEmpty;
+
+    // Проверяем согласованность данных
+    if (hasChildren) {
+      for (final childTag in childTags) {
+        // Проверяем, что дочерний тег правильно ссылается на родительский
+        if (childTag.parent == null || childTag.parent!.id != tag.id) {
+          dev.log(
+              'ОШИБКА: Дочерний тег ${childTag.id} (${childTag.name}) не ссылается на родительский ${tag.id} (${tag.name})');
+        }
+      }
+    } else if (tag.children.isNotEmpty) {
+      // У тега есть дочерние ссылки, но в иерархии объекта их нет - это нормально
+      dev.log(
+          'ИНФОРМАЦИЯ: У тега ${tag.id} (${tag.name}) есть ${tag.children.length} дочерних тегов, но ни один не найден в тегах объекта');
+    }
+
+    // Определяем иконку для тега
+    fm.IconData getTagIcon() {
+      // Специальная иконка для тренажерного зала
+      if (level == 0 &&
+          (tag.name.toLowerCase().contains('тренажерный зал') ||
+              tag.id.toLowerCase() == 'gymid')) {
+        return fm.Icons.fitness_center;
+      }
+
+      // Для родительских тегов используем стрелку вниз (как раскрывающееся меню)
+      if (hasChildren) {
+        return fm.Icons.label;
+      }
+
+      // Для обычных тегов используем маркер
+      return fm.Icons.label;
+    }
+
+    // Определяем цвет для иконки
+    fm.Color getTagIconColor() {
+      // Специальный цвет для тренажерного зала
+      if (level == 0 &&
+          (tag.name.toLowerCase().contains('тренажерный зал') ||
+              tag.id.toLowerCase() == 'gymid')) {
+        return fm.Colors.indigo;
+      }
+
+      // Светло-бирюзовый для родительских тегов
+      if (hasChildren) {
+        return fm.Colors.teal.shade300;
+      }
+
+      // Серый для обычных тегов
+      return fm.Colors.grey;
+    }
+
+    return fm.Padding(
+      // Уменьшаем вертикальный отступ между тегами для большей компактности
+      padding: fm.EdgeInsets.only(left: level > 0 ? 12.0 : 0, bottom: 4),
+      child: fm.Row(
+        crossAxisAlignment: fm.CrossAxisAlignment.start,
+        children: [
+          // Основное содержимое тега и его дочерних элементов
+          fm.Expanded(
+            child: fm.Column(
+              crossAxisAlignment: fm.CrossAxisAlignment.start,
+              children: [
+                // Текущий тег
+                fm.Row(
+                  mainAxisSize: fm.MainAxisSize.min,
+                  children: [
+                    // Иконка, указывающая тип тега, с прозрачностью 60%
+                    fm.Opacity(
+                      opacity: 0.6,
+                      child: fm.Icon(
+                        getTagIcon(),
+                        size: 16,
+                        color: getTagIconColor(),
+                      ),
+                    ),
+                    const fm.SizedBox(width: 8),
+                    fm.Flexible(
+                      child: fm.Text(
+                        tag.name,
+                        style: fm.TextStyle(
+                          fontWeight: level == 0
+                              ? fm.FontWeight.bold
+                              : fm.FontWeight.normal,
+                          color: level == 0
+                              ? fm.Colors.blue.shade700
+                              : fm.Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // Если есть дочерние теги, рекурсивно отображаем их со структурной линией
+                if (hasChildren)
+                  fm.Padding(
+                    padding: const fm.EdgeInsets.only(top: 2, left: 12),
+                    child: fm.Row(
+                      crossAxisAlignment: fm.CrossAxisAlignment.start,
+                      children: [
+                        // Содержимое дочерних тегов
+                        fm.Expanded(
+                          child: fm.Column(
+                            crossAxisAlignment: fm.CrossAxisAlignment.start,
+                            children: childTags
+                                .map((childTag) => _buildTagHierarchyItem(
+                                    childTag, tagsByParent, level + 1))
+                                .toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
