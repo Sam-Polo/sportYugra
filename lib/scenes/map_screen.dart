@@ -391,17 +391,20 @@ class _MapScreenState extends fm.State<MapScreen>
       // Очищаем текущие объекты, если они есть
       _mapObjectsManager!.clear();
 
-      // Загружаем спортивные объекты из Firestore
-      final placemarks = await _firestorePlacemarks.getSportObjects();
+      // Быстрая загрузка базовой информации (только координаты и названия)
+      final basicPlacemarks = await _firestorePlacemarks.getSportObjectsBasic();
+      dev.log('Получены базовые данные объектов: ${basicPlacemarks.length}');
 
-      // Добавляем загруженные объекты на карту
-      _mapObjectsManager!.addPlacemarks(placemarks);
-
-      dev.log(
-          'Плейсмарки из Firestore добавлены на карту: ${placemarks.length}');
+      // Добавляем базовые объекты на карту
+      _mapObjectsManager!.addPlacemarks(basicPlacemarks);
 
       // Отмечаем, что плейсмарки загружены
       _placemarksLoaded = true;
+
+      // Принудительно обновляем видимость текста в зависимости от текущего зума
+      if (_mapWindow != null) {
+        _updatePlacemarkTextVisibility(_mapWindow!.map.cameraPosition.zoom);
+      }
 
       // Обновляем расстояния до всех объектов
       _updateAllDistances();
@@ -409,13 +412,17 @@ class _MapScreenState extends fm.State<MapScreen>
       // Попытка переместить камеру после загрузки и получения местоположения
       _tryMoveCameraAfterLoadAndLocation();
 
-      // После загрузки и добавления плейсмарков, обновляем их видимость текста
-      // в зависимости от текущего зума
-      if (_mapWindow != null) {
-        _updatePlacemarkTextVisibility(_mapWindow!.map.cameraPosition.zoom);
+      // Убираем индикатор загрузки
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
+
+      // В фоновом режиме загружаем полную информацию об объектах
+      _loadDetailedInfoInBackground(basicPlacemarks);
     } catch (e) {
-      dev.log('Ошибка загрузки плейсмарков из Firestore: $e');
+      dev.log('Ошибка загрузки плейсмарков: $e');
 
       if (mounted) {
         fm.ScaffoldMessenger.of(context).showSnackBar(
@@ -424,13 +431,30 @@ class _MapScreenState extends fm.State<MapScreen>
             duration: const Duration(seconds: 3),
           ),
         );
-      }
-    } finally {
-      if (mounted) {
+
         setState(() {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Загружает детальную информацию об объектах в фоновом режиме
+  Future<void> _loadDetailedInfoInBackground(
+      List<PlacemarkData> placemarks) async {
+    try {
+      // Загружаем дополнительную информацию для объектов
+      await _firestorePlacemarks.updatePlacemarksWithDetails(placemarks);
+
+      // Обновляем объекты на карте с полной информацией
+      if (_mapObjectsManager != null && mounted) {
+        // Если активны фильтры, применяем их к обновленным объектам
+        if (_hasActiveFilters) {
+          _mapObjectsManager!.refreshWithFilters();
+        }
+      }
+    } catch (e) {
+      dev.log('Ошибка при загрузке детальной информации: $e');
     }
   }
 

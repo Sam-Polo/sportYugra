@@ -349,4 +349,14 @@ class MapObjectsManager {
   bool isPlacemarkTextVisible(String placemarkId) {
     return _placemarksWithVisibleText.contains(placemarkId);
   }
+
+  /// Обновляет отображение объектов с учетом текущих фильтров
+  void refreshWithFilters() {
+    dev.log('Обновление объектов с учетом текущих фильтров');
+
+    // Если есть активные фильтры, применяем их заново
+    if (_activeTagFilters.isNotEmpty) {
+      _refreshPlacemarks();
+    }
+  }
 }
