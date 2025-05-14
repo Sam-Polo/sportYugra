@@ -4,6 +4,9 @@ import 'dart:developer' as dev;
 import 'map_screen.dart'; // <- Импортируем MapScreen для доступа к MapSearchBar
 import '../data/tags/firestore_tags.dart';
 import '../data/tags/tag_model.dart';
+import '../data/placemarks/firestore_placemarks.dart';
+import '../data/placemarks/placemark_model.dart';
+import '../widgets/object_details_sheet.dart';
 
 class SearchScreen extends fm.StatefulWidget {
   const SearchScreen({super.key});
@@ -20,12 +23,15 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   // Флаг для отслеживания, установлен ли фокус
   bool _focusRequested = false;
 
-  // Сервис для работы с тегами
+  // Сервис для работы с тегами и объектами
   final _firestoreTags = FirestoreTags();
+  final _firestorePlacemarks = FirestorePlacemarks();
 
   // Состояние загрузки и данные тегов
   bool _isLoading = false;
   List<TagData> _rootTags = [];
+  List<TagData> _allTags = []; // Все теги (для поиска)
+  List<PlacemarkData> _allPlacemarks = []; // Все объекты (для поиска)
 
   // Для хранения выбранных тегов (id тега -> выбран/не выбран)
   final Map<String, bool> _selectedTags = {};
@@ -36,17 +42,26 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   // Для анимации появления блока иерархии
   bool _showHierarchy = false;
 
+  // Для отображения результатов поиска
+  String _searchQuery = '';
+  bool _showSearchResults = false;
+  List<dynamic> _searchResults =
+      []; // Может содержать TagData или PlacemarkData
+
   // Константы для цветов
   final fm.Color _startColor = const fm.Color(0xFFFC4C4C); // Новый красный цвет
   final fm.Color _endColor = fm.Colors.white; // Белый
   final fm.Color _checkboxInactiveColor =
-      const fm.Color.fromARGB(255, 63, 62, 62); // Цвет для неактивного чекбокса
+      const fm.Color(0xFFA83232); // Цвет для неактивного чекбокса
 
   @override
   void initState() {
     super.initState();
     _searchController = fm.TextEditingController();
     _searchFocusNode = fm.FocusNode();
+
+    // Добавляем слушатель для обновления поиска при вводе текста
+    _searchController.addListener(_onSearchChanged);
 
     // увеличиваем задержку до 600мс (равна длительности анимации перехода)
     fm.WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -61,12 +76,12 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       }
     });
 
-    // Загружаем теги
-    _loadTags();
+    // Загружаем теги и объекты
+    _loadData();
   }
 
-  /// Загружает теги из Firestore
-  Future<void> _loadTags() async {
+  /// Загружает теги и объекты
+  Future<void> _loadData() async {
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -78,16 +93,27 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       // Загружаем все теги
       final rootTags = await _firestoreTags.loadAllTags();
 
+      // Собираем все теги (корневые и дочерние) для поиска
+      final allTags = <TagData>[];
+      _collectAllTags(rootTags, allTags);
+
+      // Загружаем все объекты для поиска
+      final placemarks = await _firestorePlacemarks.getSportObjectsBasic();
+
       // Автоматически раскрываем тег "тренажерный зал"
       _expandGymTags(rootTags);
 
       // Выводим информацию о всех тегах и их иерархии
-      dev.log('Загружено ${rootTags.length} корневых тегов');
+      dev.log(
+          'Загружено ${rootTags.length} корневых тегов и ${allTags.length} всего тегов');
+      dev.log('Загружено ${placemarks.length} объектов');
       _logTagsHierarchy(rootTags);
 
       if (mounted) {
         setState(() {
           _rootTags = rootTags;
+          _allTags = allTags;
+          _allPlacemarks = placemarks;
           _isLoading = false;
 
           // Запускаем анимацию появления после небольшой задержки
@@ -101,7 +127,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
         });
       }
     } catch (e) {
-      dev.log('Ошибка при загрузке тегов: $e');
+      dev.log('Ошибка при загрузке данных: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -109,6 +135,54 @@ class _SearchScreenState extends fm.State<SearchScreen> {
         });
       }
     }
+  }
+
+  /// Рекурсивно собирает все теги в один список
+  void _collectAllTags(List<TagData> tags, List<TagData> result) {
+    for (final tag in tags) {
+      result.add(tag);
+      _collectAllTags(tag.childrenTags, result);
+    }
+  }
+
+  /// Обрабатывает изменения в поисковой строке
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+
+    if (query.isEmpty) {
+      setState(() {
+        _searchQuery = '';
+        _showSearchResults = false;
+      });
+      return;
+    }
+
+    // Ищем совпадения среди тегов и объектов
+    final results = <dynamic>[];
+
+    // Поиск по тегам
+    for (final tag in _allTags) {
+      if (tag.name.toLowerCase().contains(query)) {
+        results.add(tag);
+        if (results.length >= 5) break; // Максимум 5 результатов
+      }
+    }
+
+    // Если еще есть место для результатов, ищем среди объектов
+    if (results.length < 5) {
+      for (final placemark in _allPlacemarks) {
+        if (placemark.name.toLowerCase().contains(query)) {
+          results.add(placemark);
+          if (results.length >= 5) break; // Максимум 5 результатов
+        }
+      }
+    }
+
+    setState(() {
+      _searchQuery = query;
+      _searchResults = results;
+      _showSearchResults = results.isNotEmpty;
+    });
   }
 
   /// Рекурсивно выводит информацию об иерархии тегов для отладки
@@ -166,9 +240,46 @@ class _SearchScreenState extends fm.State<SearchScreen> {
         tagIdLower.contains('тренажер');
   }
 
+  /// Находит тег по его ID
+  TagData? _findTagById(String tagId) {
+    for (final tag in _allTags) {
+      if (tag.id == tagId) return tag;
+    }
+    return null;
+  }
+
+  /// Обрабатывает выбор тега
+  void _toggleTagSelection(String tagId, bool value) {
+    setState(() {
+      if (value) {
+        _selectedTags[tagId] = true;
+      } else {
+        _selectedTags.remove(tagId);
+      }
+    });
+  }
+
+  /// Обрабатывает выбор объекта из результатов поиска
+  void _onPlacemarkSelected(PlacemarkData placemark) {
+    // Закрываем поиск и открываем страницу объекта
+    fm.Navigator.of(context).pop();
+
+    // Показываем детали объекта
+    fm.showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: fm.Colors.transparent,
+      builder: (context) => ObjectDetailsSheet(
+        placemark: placemark,
+        distance: null, // Расстояние не известно на этом экране
+      ),
+    );
+  }
+
   @override
   void dispose() {
     // Освобождаем ресурсы
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
@@ -196,15 +307,16 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                     focusNode: _searchFocusNode,
                     autoFocus: false,
                     onChanged: (text) {
-                      setState(() {
-                        // Здесь можем обновить результаты поиска при вводе
-                      });
+                      // Обработка происходит в _onSearchChanged
                     },
                   ),
                 ),
               ),
             ),
           ),
+
+          // Результаты поиска (если есть)
+          if (_showSearchResults) _buildSearchResults(),
 
           // Область для отображения иерархии тегов
           fm.Expanded(
@@ -242,6 +354,170 @@ class _SearchScreenState extends fm.State<SearchScreen> {
         ],
       ),
     );
+  }
+
+  /// Строит выпадающий список с результатами поиска
+  fm.Widget _buildSearchResults() {
+    return fm.Container(
+      width: double.infinity,
+      constraints: const fm.BoxConstraints(maxHeight: 300),
+      margin: const fm.EdgeInsets.symmetric(horizontal: 16),
+      decoration: fm.BoxDecoration(
+        color: fm.Colors.black,
+        border: fm.Border.all(color: fm.Colors.grey.shade800),
+        borderRadius: fm.BorderRadius.circular(8),
+        boxShadow: [
+          fm.BoxShadow(
+            color: fm.Colors.black.withOpacity(0.5),
+            blurRadius: 10,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: fm.ListView.builder(
+        shrinkWrap: true,
+        padding: fm.EdgeInsets.zero,
+        itemCount: _searchResults.length,
+        itemBuilder: (context, index) {
+          final result = _searchResults[index];
+
+          if (result is TagData) {
+            return _buildTagSearchResult(result);
+          } else if (result is PlacemarkData) {
+            return _buildPlacemarkSearchResult(result);
+          }
+
+          return const fm.SizedBox();
+        },
+      ),
+    );
+  }
+
+  /// Строит элемент результата поиска для тега
+  fm.Widget _buildTagSearchResult(TagData tag) {
+    // Находим родительский тег для отображения
+    final parentName = tag.parentTag?.name ?? '';
+
+    return fm.InkWell(
+      onTap: () {
+        // При нажатии на элемент тега (не на чекбокс) скрываем результаты поиска
+        setState(() {
+          _showSearchResults = false;
+          _searchController.clear();
+        });
+
+        // Находим тег в иерархии и раскрываем его родителей
+        _expandParentsOfTag(tag);
+      },
+      child: fm.Padding(
+        padding: const fm.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: fm.Row(
+          children: [
+            // Иконка тега
+            fm.Container(
+              width: 8,
+              height: 8,
+              decoration: fm.BoxDecoration(
+                color: fm.Colors.grey.shade400,
+                shape: fm.BoxShape.circle,
+              ),
+            ),
+            const fm.SizedBox(width: 12),
+
+            // Название тега
+            fm.Expanded(
+              child: fm.Text(
+                tag.name,
+                style: const fm.TextStyle(
+                  color: fm.Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+
+            // Родительский тег (если есть)
+            if (parentName.isNotEmpty)
+              fm.Text(
+                parentName,
+                style: fm.TextStyle(
+                  color: fm.Colors.white.withOpacity(0.5),
+                  fontSize: 14,
+                ),
+              ),
+
+            const fm.SizedBox(width: 12),
+
+            // Чекбокс
+            fm.Theme(
+              data: fm.ThemeData(
+                checkboxTheme: fm.CheckboxThemeData(
+                  fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
+                    (states) {
+                      if (states.contains(fm.MaterialState.selected)) {
+                        return _startColor;
+                      }
+                      return _checkboxInactiveColor;
+                    },
+                  ),
+                  checkColor: fm.MaterialStateProperty.all(fm.Colors.black),
+                ),
+              ),
+              child: fm.Checkbox(
+                value: _selectedTags[tag.id] ?? false,
+                onChanged: (value) {
+                  _toggleTagSelection(tag.id, value ?? false);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Строит элемент результата поиска для объекта
+  fm.Widget _buildPlacemarkSearchResult(PlacemarkData placemark) {
+    return fm.InkWell(
+      onTap: () => _onPlacemarkSelected(placemark),
+      child: fm.Padding(
+        padding: const fm.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: fm.Row(
+          children: [
+            // Иконка объекта
+            const fm.Icon(
+              fm.Icons.place,
+              color: fm.Colors.red,
+              size: 20,
+            ),
+            const fm.SizedBox(width: 12),
+
+            // Название объекта
+            fm.Expanded(
+              child: fm.Text(
+                placemark.name,
+                style: const fm.TextStyle(
+                  color: fm.Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Раскрывает все родительские теги для указанного тега
+  void _expandParentsOfTag(TagData tag) {
+    // Добавляем сам тег в список развернутых
+    setState(() {
+      // Раскрываем родительские теги
+      TagData? currentParent = tag.parentTag;
+      while (currentParent != null) {
+        _expandedTags.add(currentParent.id);
+        currentParent = currentParent.parentTag;
+      }
+    });
   }
 
   /// Применение выбранных фильтров
