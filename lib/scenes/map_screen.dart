@@ -168,6 +168,10 @@ class _MapScreenState extends fm.State<MapScreen>
   // Флаг для отображения кнопки "Очистить фильтры"
   bool _hasActiveFilters = false;
 
+  // Флаг для отображения кнопки обновления данных (для отладки)
+  static const bool _showRefreshButton =
+      false; // установите true, чтобы показать кнопку
+
   @override
   void initState() {
     super.initState();
@@ -552,21 +556,22 @@ class _MapScreenState extends fm.State<MapScreen>
               ),
             ),
           // Кнопка обновления данных
-          fm.Positioned(
-            left: 16,
-            bottom: 16,
-            child: fm.Container(
-              decoration: fm.BoxDecoration(
-                color: const fm.Color(0xBF090230),
-                borderRadius: fm.BorderRadius.circular(8),
-              ),
-              child: fm.IconButton(
-                icon: const fm.Icon(fm.Icons.refresh, color: fm.Colors.white),
-                onPressed: _loadPlacemarksFromFirestore,
-                tooltip: 'Обновить данные',
+          if (_showRefreshButton)
+            fm.Positioned(
+              left: 16,
+              bottom: 16,
+              child: fm.Container(
+                decoration: fm.BoxDecoration(
+                  color: const fm.Color(0xBF090230),
+                  borderRadius: fm.BorderRadius.circular(8),
+                ),
+                child: fm.IconButton(
+                  icon: const fm.Icon(fm.Icons.refresh, color: fm.Colors.white),
+                  onPressed: _loadPlacemarksFromFirestore,
+                  tooltip: 'Обновить данные',
+                ),
               ),
             ),
-          ),
           // Кнопки зума
           fm.Positioned(
             right: 16,
