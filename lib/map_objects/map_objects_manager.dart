@@ -43,6 +43,12 @@ class MapObjectsManager {
   // Сет для отслеживания плейсмарков, у которых сейчас отображается текст
   final Set<String> _placemarksWithVisibleText = {};
 
+  // Список всех плейсмарков для фильтрации
+  List<PlacemarkData> _allPlacemarks = [];
+
+  // Активные фильтры (ID тегов)
+  List<String> _activeTagFilters = [];
+
   MapObjectsManager(this._mapWindow, {required this.onMapObjectTap}) {
     _mapObjectTapListener =
         MapObjectTapListenerImpl(onMapObjectTapped: _onMapObjectTapped);
@@ -56,16 +62,84 @@ class MapObjectsManager {
     dev.log('MapObjectsManager created');
   }
 
+  /// Устанавливает активные фильтры тегов и обновляет отображаемые объекты
+  void setTagFilters(List<String> tagIds) {
+    _activeTagFilters = tagIds;
+    dev.log('Установлены фильтры тегов: $_activeTagFilters');
+
+    // Если у нас уже есть плейсмарки, применяем к ним фильтры
+    if (_allPlacemarks.isNotEmpty) {
+      _refreshPlacemarks();
+    }
+  }
+
+  /// Очищает все фильтры
+  void clearFilters() {
+    _activeTagFilters = [];
+    dev.log('Фильтры тегов очищены');
+
+    // Если у нас уже есть плейсмарки, отображаем их все
+    if (_allPlacemarks.isNotEmpty) {
+      _refreshPlacemarks();
+    }
+  }
+
+  /// Проверяет, соответствует ли плейсмарк текущим фильтрам
+  bool _matchesFilters(PlacemarkData placemark) {
+    // Если нет активных фильтров, показываем все объекты
+    if (_activeTagFilters.isEmpty) {
+      return true;
+    }
+
+    // Выводим теги объекта для отладки
+    dev.log('Проверка объекта ${placemark.name} с тегами: ${placemark.tags}');
+    dev.log('Активные фильтры: $_activeTagFilters');
+
+    // Проверяем, содержит ли плейсмарк все выбранные теги
+    for (final tagId in _activeTagFilters) {
+      if (!placemark.tags.contains(tagId)) {
+        return false; // Если хотя бы один тег не найден, объект не соответствует фильтрам
+      }
+    }
+
+    // Если все теги найдены, объект соответствует фильтрам
+    dev.log('Объект ${placemark.name} соответствует фильтрам');
+    return true;
+  }
+
+  /// Обновляет отображение плейсмарков согласно текущим фильтрам
+  void _refreshPlacemarks() {
+    // Очищаем текущие объекты с карты
+    _mapObjectCollection.clear();
+    _addedPlacemarkIds.clear();
+    _placemarkObjects.clear();
+    _placemarksWithVisibleText.clear();
+
+    // Фильтруем плейсмарки
+    final filteredPlacemarks = _allPlacemarks.where(_matchesFilters).toList();
+    dev.log(
+        'Отфильтровано ${filteredPlacemarks.length} из ${_allPlacemarks.length} объектов');
+
+    // Добавляем отфильтрованные плейсмарки на карту
+    _addPlacemarksWithAnimation(filteredPlacemarks);
+  }
+
   /// Добавляет список спортивных объектов на карту
   void addPlacemarks(List<PlacemarkData> placemarks) {
     if (!_isInitialized) {
       _isInitialized = true;
     }
 
-    // Анимированное добавление плейсмарков с задержкой
-    _addPlacemarksWithAnimation(placemarks);
+    // Сохраняем все плейсмарки для возможности фильтрации
+    _allPlacemarks = placemarks;
 
-    dev.log('Added ${placemarks.length} placemarks to map');
+    // Фильтруем плейсмарки перед добавлением
+    final filteredPlacemarks = placemarks.where(_matchesFilters).toList();
+    dev.log(
+        'Добавление ${filteredPlacemarks.length} из ${placemarks.length} объектов (применены фильтры: ${_activeTagFilters.isNotEmpty})');
+
+    // Анимированное добавление плейсмарков с задержкой
+    _addPlacemarksWithAnimation(filteredPlacemarks);
   }
 
   /// Добавляет плейсмарки с анимацией

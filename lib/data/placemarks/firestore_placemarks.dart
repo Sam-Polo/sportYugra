@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:yandex_maps_mapkit/mapkit.dart' show Point;
 import 'placemark_model.dart';
 import 'dart:developer' as dev;
+import '../tags/firestore_tags.dart';
 
 class FirestorePlacemarks {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirestoreTags _firestoreTags = FirestoreTags();
 
   /// Загружает спортивные объекты из Firestore
   Future<List<PlacemarkData>> getSportObjects() async {
@@ -12,6 +14,9 @@ class FirestorePlacemarks {
       final snapshot = await _firestore.collection('sportobjects').get();
 
       final placemarks = <PlacemarkData>[];
+
+      // Предварительно загружаем все теги для кэширования
+      await _firestoreTags.loadAllTags();
 
       for (final doc in snapshot.docs) {
         try {
@@ -54,6 +59,22 @@ class FirestorePlacemarks {
             }
           }
 
+          // Загружаем теги объекта через FirestoreTags
+          List<String> tagIds = [];
+          try {
+            // Загружаем теги для объекта
+            final objectTags = await _firestoreTags.loadTagsForObject(doc.id);
+            if (objectTags.isNotEmpty) {
+              // Получаем ID тегов для фильтрации
+              tagIds = objectTags.map((tag) => tag.id).toList();
+              dev.log('Загружены теги для объекта ${doc.id}: $tagIds');
+            } else {
+              dev.log('Для объекта ${doc.id} не найдены теги');
+            }
+          } catch (e) {
+            dev.log('Ошибка при загрузке тегов для объекта ${doc.id}: $e');
+          }
+
           // Создаем объект PlacemarkData
           final placemark = PlacemarkData(
             id: doc.id, // Добавляем id документа
@@ -63,7 +84,7 @@ class FirestorePlacemarks {
               latitude: geoPoint.latitude,
               longitude: geoPoint.longitude,
             ),
-            tags: List<String>.from(data['tagNames'] ?? []),
+            tags: tagIds, // Используем загруженные ID тегов
             photoUrls: photoUrls,
             address: address,
             phone: phone,

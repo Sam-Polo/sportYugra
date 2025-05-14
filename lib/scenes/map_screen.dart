@@ -165,6 +165,9 @@ class _MapScreenState extends fm.State<MapScreen>
   // Словарь для хранения расстояний до объектов (ключ - идентификатор объекта)
   final _objectDistances = HashMap<String, double>();
 
+  // Флаг для отображения кнопки "Очистить фильтры"
+  bool _hasActiveFilters = false;
+
   @override
   void initState() {
     super.initState();
@@ -510,26 +513,7 @@ class _MapScreenState extends fm.State<MapScreen>
                   child: MapSearchBar(
                     isButton: true,
                     onTap: () {
-                      dev.log('Search bar tapped, initiating transition...');
-                      fm.Navigator.of(context).push(
-                        fm.PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const SearchScreen(),
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            // Анимация затемнения фона MapScreen
-                            return fm.FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            );
-                          },
-                          transitionDuration: const Duration(milliseconds: 600),
-                          reverseTransitionDuration:
-                              const Duration(milliseconds: 600),
-                          opaque: false,
-                        ),
-                      );
+                      _openSearchScreen(context);
                     },
                   ),
                 ),
@@ -598,6 +582,28 @@ class _MapScreenState extends fm.State<MapScreen>
               ),
             ),
           ),
+          // Кнопка "Очистить фильтры"
+          if (_hasActiveFilters)
+            fm.Positioned(
+              left: 0,
+              right: 0,
+              bottom: 16,
+              child: fm.Center(
+                child: fm.ElevatedButton(
+                  onPressed: _clearFilters,
+                  style: fm.ElevatedButton.styleFrom(
+                    backgroundColor: const fm.Color(0xFFFC4C4C),
+                    foregroundColor: fm.Colors.white,
+                    padding: const fm.EdgeInsets.symmetric(
+                        horizontal: 24.0, vertical: 12.0),
+                  ),
+                  child: const fm.Text(
+                    'Очистить фильтры',
+                    style: fm.TextStyle(fontSize: 16.0),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -700,6 +706,79 @@ class _MapScreenState extends fm.State<MapScreen>
         const Animation(AnimationType.Smooth,
             duration: 0.2), // Плавная анимация 0.2 сек
       );
+    }
+  }
+
+  // Метод для очистки фильтров
+  void _clearFilters() {
+    _mapObjectsManager?.clearFilters();
+    setState(() {
+      _hasActiveFilters = false;
+    });
+    dev.log('Фильтры очищены');
+  }
+
+  // Метод для открытия экрана поиска
+  void _openSearchScreen(fm.BuildContext context) async {
+    dev.log('Search bar tapped, initiating transition...');
+
+    // Открываем экран поиска и ждем результат (выбранные теги)
+    final selectedTags = await fm.Navigator.of(context).push<List<String>>(
+      fm.PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const SearchScreen(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          // Анимация затемнения фона MapScreen
+          return fm.FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 600),
+        reverseTransitionDuration: const Duration(milliseconds: 600),
+        opaque: false,
+      ),
+    );
+
+    // Проверяем, были ли выбраны теги
+    if (selectedTags != null && selectedTags.isNotEmpty) {
+      dev.log('Получены выбранные теги: $selectedTags');
+
+      // Применяем фильтры к объектам на карте
+      _mapObjectsManager?.setTagFilters(selectedTags);
+
+      // Показываем кнопку очистки фильтров
+      setState(() {
+        _hasActiveFilters = true;
+      });
+
+      // Перемещаем камеру на начальную позицию
+      _moveToInitialPosition();
+    } else if (selectedTags != null && selectedTags.isEmpty) {
+      // Если вернулся пустой список, очищаем фильтры
+      dev.log('Получен пустой список тегов, очищаем фильтры');
+      _mapObjectsManager?.clearFilters();
+
+      // Скрываем кнопку очистки фильтров
+      setState(() {
+        _hasActiveFilters = false;
+      });
+    }
+  }
+
+  // Перемещает камеру на начальную позицию
+  void _moveToInitialPosition() {
+    if (_mapWindow != null) {
+      _mapWindow?.map.moveWithAnimation(
+        CameraPosition(
+          Point(latitude: 60.988094, longitude: 69.037551),
+          zoom: 12.7,
+          azimuth: 0.0,
+          tilt: 17.0,
+        ),
+        const Animation(AnimationType.Smooth, duration: 1.0),
+      );
+      dev.log('Камера перемещена на начальную позицию');
     }
   }
 }
