@@ -209,11 +209,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
           // Область для отображения иерархии тегов
           fm.Expanded(
             child: _isLoading
-                ? const fm.Center(
-                    child: fm.CircularProgressIndicator(
-                      color: fm.Colors.white,
-                    ),
-                  )
+                ? const fm.SizedBox() // заменяем спиннер на пустой контейнер
                 : _buildTagsHierarchyView(),
           ),
 
