@@ -134,7 +134,7 @@ class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
     implements UserLocationObjectListener, MapCameraListener {
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
-  final bool _enableAutoCameraMove = false; // установите false для отключения
+  final bool _enableAutoCameraMove = true; // установите false для отключения
 
   MapWindow? _mapWindow;
   String? _mapStyle;
