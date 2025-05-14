@@ -7,6 +7,7 @@ import '../data/tags/tag_model.dart';
 import '../data/placemarks/firestore_placemarks.dart';
 import '../data/placemarks/placemark_model.dart';
 import '../widgets/object_details_sheet.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SearchScreen extends fm.StatefulWidget {
   const SearchScreen({super.key});
@@ -52,7 +53,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   final fm.Color _startColor = const fm.Color(0xFFFC4C4C); // Новый красный цвет
   final fm.Color _endColor = fm.Colors.white; // Белый
   final fm.Color _checkboxInactiveColor =
-      const fm.Color(0xFFA83232); // Цвет для неактивного чекбокса
+      const fm.Color.fromARGB(255, 63, 62, 62); // Цвет для неактивного чекбокса
 
   @override
   void initState() {
@@ -164,16 +165,17 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     for (final tag in _allTags) {
       if (tag.name.toLowerCase().contains(query)) {
         results.add(tag);
-        if (results.length >= 5) break; // Максимум 5 результатов
+        if (results.length >= 9) break; // Увеличиваем до 9 результатов
       }
     }
 
     // Если еще есть место для результатов, ищем среди объектов
-    if (results.length < 5) {
+    if (results.length < 9) {
+      // Увеличиваем до 9 результатов
       for (final placemark in _allPlacemarks) {
         if (placemark.name.toLowerCase().contains(query)) {
           results.add(placemark);
-          if (results.length >= 5) break; // Максимум 5 результатов
+          if (results.length >= 9) break; // Увеличиваем до 9 результатов
         }
       }
     }
@@ -261,19 +263,73 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Обрабатывает выбор объекта из результатов поиска
   void _onPlacemarkSelected(PlacemarkData placemark) {
-    // Закрываем поиск и открываем страницу объекта
-    fm.Navigator.of(context).pop();
+    // Загружаем полную информацию об объекте перед показом
+    _loadFullPlacemarkDetails(placemark).then((_) {
+      // Закрываем поиск и открываем страницу объекта
+      fm.Navigator.of(context).pop();
 
-    // Показываем детали объекта
-    fm.showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: fm.Colors.transparent,
-      builder: (context) => ObjectDetailsSheet(
-        placemark: placemark,
-        distance: null, // Расстояние не известно на этом экране
-      ),
-    );
+      // Показываем детали объекта
+      fm.showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: fm.Colors.transparent,
+        builder: (context) => ObjectDetailsSheet(
+          placemark: placemark,
+          distance: null, // Расстояние не известно на этом экране
+        ),
+      );
+    });
+  }
+
+  /// Загружает полную информацию об объекте
+  Future<void> _loadFullPlacemarkDetails(PlacemarkData placemark) async {
+    try {
+      // Получаем полные данные объекта через Firestore
+      final objectDoc = await FirebaseFirestore.instance
+          .collection('sportobjects')
+          .doc(placemark.id)
+          .get();
+
+      if (!objectDoc.exists) return;
+
+      final data = objectDoc.data()!;
+
+      // Обновляем описание
+      if (data.containsKey('description')) {
+        placemark.description = data['description'] as String?;
+      }
+
+      // Обновляем фото
+      if (data.containsKey('photo-urls')) {
+        try {
+          placemark.photoUrls = List<String>.from(data['photo-urls'] ?? []);
+        } catch (e) {
+          // Ошибка обработки фото
+        }
+      }
+
+      // Обновляем адрес
+      if (data.containsKey('address')) {
+        placemark.address = data['address'] as String?;
+      }
+
+      // Обновляем телефон
+      if (data.containsKey('phone')) {
+        placemark.phone = data['phone'] as String?;
+      }
+
+      // Загружаем теги объекта
+      try {
+        final objectTags = await _firestoreTags.loadTagsForObject(placemark.id);
+        if (objectTags.isNotEmpty) {
+          placemark.tags = objectTags.map((tag) => tag.id).toList();
+        }
+      } catch (e) {
+        // Ошибка загрузки тегов
+      }
+    } catch (e) {
+      dev.log('Ошибка при загрузке деталей объекта: $e');
+    }
   }
 
   @override
@@ -292,65 +348,112 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
     return fm.Scaffold(
       backgroundColor: fm.Colors.black, // Черный фон
-      body: fm.Column(
+      resizeToAvoidBottomInset:
+          false, // Отключаем автоматическую подстройку под клавиатуру
+      body: fm.Stack(
         children: [
-          fm.SafeArea(
-            child: fm.Padding(
-              padding: const fm.EdgeInsets.only(left: 16, right: 16, top: 2),
-              child: fm.Hero(
-                tag: 'searchBarHero',
-                child: fm.Material(
-                  color: fm.Colors.transparent,
-                  child: MapSearchBar(
-                    isButton: false,
-                    controller: _searchController,
-                    focusNode: _searchFocusNode,
-                    autoFocus: false,
-                    onChanged: (text) {
-                      // Обработка происходит в _onSearchChanged
-                    },
+          fm.Column(
+            children: [
+              fm.SafeArea(
+                child: fm.Padding(
+                  padding:
+                      const fm.EdgeInsets.only(left: 16, right: 16, top: 2),
+                  child: fm.Column(
+                    mainAxisSize: fm.MainAxisSize.min,
+                    children: [
+                      // Поисковая строка с Hero анимацией
+                      fm.Hero(
+                        tag: 'searchBarHero',
+                        child: fm.Material(
+                          color: fm.Colors.transparent,
+                          child: MapSearchBar(
+                            isButton: false,
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            autoFocus: false,
+                            onChanged: (text) {
+                              // Обработка происходит в _onSearchChanged
+                            },
+                          ),
+                        ),
+                      ),
+
+                      // Кнопка разворачивания подсказок (если поиск не пустой, но подсказки скрыты)
+                      if (_searchQuery.isNotEmpty && !_showSearchResults)
+                        fm.InkWell(
+                          onTap: () {
+                            setState(() {
+                              _showSearchResults = true;
+                            });
+                          },
+                          child: fm.Container(
+                            width: double.infinity,
+                            margin: const fm.EdgeInsets.only(top: 4),
+                            padding: const fm.EdgeInsets.symmetric(vertical: 8),
+                            decoration: fm.BoxDecoration(
+                              color: fm.Colors.grey.shade900,
+                              borderRadius: fm.BorderRadius.circular(8),
+                            ),
+                            child: const fm.Center(
+                              child: fm.Icon(
+                                fm.Icons.keyboard_arrow_down,
+                                color: fm.Colors.white70,
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ),
 
-          // Результаты поиска (если есть)
-          if (_showSearchResults) _buildSearchResults(),
+              // Область для отображения иерархии тегов
+              fm.Expanded(
+                child: _isLoading
+                    ? const fm
+                        .SizedBox() // заменяем спиннер на пустой контейнер
+                    : _buildTagsHierarchyView(),
+              ),
 
-          // Область для отображения иерархии тегов
-          fm.Expanded(
-            child: _isLoading
-                ? const fm.SizedBox() // заменяем спиннер на пустой контейнер
-                : _buildTagsHierarchyView(),
-          ),
-
-          // Кнопка "Применить" - всегда видима, но может быть неактивной
-          fm.Padding(
-            padding: const fm.EdgeInsets.all(16.0),
-            child: fm.Align(
-              alignment: fm.Alignment.bottomRight,
-              child: fm.ElevatedButton(
-                onPressed: hasSelectedTags
-                    ? _applyFilters
-                    : null, // Неактивна, если нет выбранных тегов
-                style: fm.ElevatedButton.styleFrom(
-                  backgroundColor:
-                      hasSelectedTags ? _startColor : fm.Colors.grey,
-                  foregroundColor: fm.Colors.white,
-                  padding: const fm.EdgeInsets.symmetric(
-                      horizontal: 24.0, vertical: 12.0),
-                  // Убеждаемся, что кнопка всегда видима
-                  disabledBackgroundColor: fm.Colors.grey,
-                  disabledForegroundColor: fm.Colors.white70,
-                ),
-                child: const fm.Text(
-                  'Применить',
-                  style: fm.TextStyle(fontSize: 16.0),
+              // Кнопка "Применить" - всегда видима, но может быть неактивной
+              fm.Padding(
+                padding: const fm.EdgeInsets.all(16.0),
+                child: fm.Align(
+                  alignment: fm.Alignment.bottomRight,
+                  child: fm.ElevatedButton(
+                    onPressed: hasSelectedTags
+                        ? _applyFilters
+                        : null, // Неактивна, если нет выбранных тегов
+                    style: fm.ElevatedButton.styleFrom(
+                      backgroundColor:
+                          hasSelectedTags ? _startColor : fm.Colors.grey,
+                      foregroundColor: fm.Colors.white,
+                      padding: const fm.EdgeInsets.symmetric(
+                          horizontal: 24.0, vertical: 12.0),
+                      // Убеждаемся, что кнопка всегда видима
+                      disabledBackgroundColor: fm.Colors.grey,
+                      disabledForegroundColor: fm.Colors.white70,
+                    ),
+                    child: const fm.Text(
+                      'Применить',
+                      style: fm.TextStyle(fontSize: 16.0),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
+
+          // Результаты поиска поверх основного контента (если есть)
+          if (_showSearchResults)
+            fm.Positioned(
+              top: fm.MediaQuery.of(context).padding.top +
+                  50, // Позиционируем под строкой поиска
+              left: 16,
+              right: 16,
+              child: _buildSearchResults(),
+            ),
         ],
       ),
     );
@@ -358,37 +461,77 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Строит выпадающий список с результатами поиска
   fm.Widget _buildSearchResults() {
-    return fm.Container(
-      width: double.infinity,
-      constraints: const fm.BoxConstraints(maxHeight: 300),
-      margin: const fm.EdgeInsets.symmetric(horizontal: 16),
-      decoration: fm.BoxDecoration(
-        color: fm.Colors.black,
-        border: fm.Border.all(color: fm.Colors.grey.shade800),
-        borderRadius: fm.BorderRadius.circular(8),
-        boxShadow: [
-          fm.BoxShadow(
-            color: fm.Colors.black.withOpacity(0.5),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: fm.ListView.builder(
-        shrinkWrap: true,
-        padding: fm.EdgeInsets.zero,
-        itemCount: _searchResults.length,
-        itemBuilder: (context, index) {
-          final result = _searchResults[index];
+    return fm.Material(
+      color: fm.Colors.transparent,
+      elevation: 8,
+      child: fm.Container(
+        width: double.infinity,
+        constraints: const fm.BoxConstraints(maxHeight: 300),
+        decoration: fm.BoxDecoration(
+          color: fm.Colors.black,
+          border: fm.Border.all(color: fm.Colors.grey.shade800),
+          borderRadius: fm.BorderRadius.circular(8),
+          boxShadow: [
+            fm.BoxShadow(
+              color: fm.Colors.black.withOpacity(0.5),
+              blurRadius: 10,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: fm.Column(
+          mainAxisSize: fm.MainAxisSize.min,
+          children: [
+            // Результаты поиска
+            fm.Flexible(
+              child: fm.ListView.builder(
+                shrinkWrap: true,
+                padding: fm.EdgeInsets.zero,
+                itemCount: _searchResults.length,
+                itemBuilder: (context, index) {
+                  final result = _searchResults[index];
 
-          if (result is TagData) {
-            return _buildTagSearchResult(result);
-          } else if (result is PlacemarkData) {
-            return _buildPlacemarkSearchResult(result);
-          }
+                  if (result is TagData) {
+                    return _buildTagSearchResult(result);
+                  } else if (result is PlacemarkData) {
+                    return _buildPlacemarkSearchResult(result);
+                  }
 
-          return const fm.SizedBox();
-        },
+                  return const fm.SizedBox();
+                },
+              ),
+            ),
+
+            // Кнопка сворачивания
+            fm.InkWell(
+              onTap: () {
+                setState(() {
+                  _showSearchResults = false;
+                  // Очищаем строку поиска при сворачивании
+                  _searchController.clear();
+                });
+              },
+              child: fm.Container(
+                width: double.infinity,
+                padding: const fm.EdgeInsets.symmetric(vertical: 8),
+                decoration: fm.BoxDecoration(
+                  color: fm.Colors.grey.shade900,
+                  borderRadius: const fm.BorderRadius.only(
+                    bottomLeft: fm.Radius.circular(8),
+                    bottomRight: fm.Radius.circular(8),
+                  ),
+                ),
+                child: const fm.Center(
+                  child: fm.Icon(
+                    fm.Icons.keyboard_arrow_up,
+                    color: fm.Colors.white70,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -424,49 +567,60 @@ class _SearchScreenState extends fm.State<SearchScreen> {
             ),
             const fm.SizedBox(width: 12),
 
-            // Название тега
+            // Название тега (расширенное)
             fm.Expanded(
+              flex: 2, // Увеличиваем вес основного названия
               child: fm.Text(
                 tag.name,
                 style: const fm.TextStyle(
                   color: fm.Colors.white,
                   fontSize: 16,
                 ),
+                overflow: fm.TextOverflow.ellipsis,
               ),
             ),
 
-            // Родительский тег (если есть)
+            // Родительский тег (если есть) с ограниченной шириной
             if (parentName.isNotEmpty)
-              fm.Text(
-                parentName,
-                style: fm.TextStyle(
-                  color: fm.Colors.white.withOpacity(0.5),
-                  fontSize: 14,
-                ),
-              ),
-
-            const fm.SizedBox(width: 12),
-
-            // Чекбокс
-            fm.Theme(
-              data: fm.ThemeData(
-                checkboxTheme: fm.CheckboxThemeData(
-                  fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
-                    (states) {
-                      if (states.contains(fm.MaterialState.selected)) {
-                        return _startColor;
-                      }
-                      return _checkboxInactiveColor;
-                    },
+              fm.Expanded(
+                flex: 1, // Уменьшаем вес родительского названия
+                child: fm.Text(
+                  parentName,
+                  style: fm.TextStyle(
+                    color: fm.Colors.white.withOpacity(0.5),
+                    fontSize: 14,
                   ),
-                  checkColor: fm.MaterialStateProperty.all(fm.Colors.black),
+                  overflow: fm.TextOverflow.ellipsis,
+                  textAlign: fm.TextAlign.right,
                 ),
               ),
-              child: fm.Checkbox(
-                value: _selectedTags[tag.id] ?? false,
-                onChanged: (value) {
-                  _toggleTagSelection(tag.id, value ?? false);
-                },
+
+            const fm.SizedBox(width: 8),
+
+            // Чекбокс (фиксированной ширины)
+            fm.SizedBox(
+              width: 42, // Фиксированная ширина для чекбокса
+              child: fm.Theme(
+                data: fm.ThemeData(
+                  checkboxTheme: fm.CheckboxThemeData(
+                    fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
+                      (states) {
+                        if (states.contains(fm.MaterialState.selected)) {
+                          return _startColor;
+                        }
+                        return const fm.Color.fromARGB(255, 63, 62,
+                            62); // Серый цвет для неактивного чекбокса
+                      },
+                    ),
+                    checkColor: fm.MaterialStateProperty.all(fm.Colors.black),
+                  ),
+                ),
+                child: fm.Checkbox(
+                  value: _selectedTags[tag.id] ?? false,
+                  onChanged: (value) {
+                    _toggleTagSelection(tag.id, value ?? false);
+                  },
+                ),
               ),
             ),
           ],
@@ -477,6 +631,9 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Строит элемент результата поиска для объекта
   fm.Widget _buildPlacemarkSearchResult(PlacemarkData placemark) {
+    // Адрес объекта для отображения
+    final address = placemark.address ?? '';
+
     return fm.InkWell(
       onTap: () => _onPlacemarkSelected(placemark),
       child: fm.Padding(
@@ -493,14 +650,31 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
             // Название объекта
             fm.Expanded(
+              flex: 2, // Увеличиваем вес основного названия
               child: fm.Text(
                 placemark.name,
                 style: const fm.TextStyle(
                   color: fm.Colors.white,
                   fontSize: 16,
                 ),
+                overflow: fm.TextOverflow.ellipsis,
               ),
             ),
+
+            // Адрес объекта (если есть) с ограниченной шириной
+            if (address.isNotEmpty)
+              fm.Expanded(
+                flex: 1, // Уменьшаем вес адреса
+                child: fm.Text(
+                  address,
+                  style: fm.TextStyle(
+                    color: fm.Colors.white.withOpacity(0.5),
+                    fontSize: 14,
+                  ),
+                  overflow: fm.TextOverflow.ellipsis,
+                  textAlign: fm.TextAlign.right,
+                ),
+              ),
           ],
         ),
       ),
