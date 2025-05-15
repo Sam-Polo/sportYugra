@@ -1,0 +1,14 @@
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/images/start_icon_dumbbell.png
+  branding: assets/images/start_icon_dumbbell.png
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
+
+  android_12:
+    image: assets/images/start_icon_dumbbell.png
+    icon_background_color: "#ffffff"
+    branding_mode: bottom
+
+  web: false 
