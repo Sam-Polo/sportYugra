@@ -272,7 +272,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     }
   }
 
-  /// Проверяет, является ли тег тренажерным залом
+  /// Проверяет, является ли тег тренажерным залом (только для автоматического раскрытия)
   bool _isGymTag(TagData tag) {
     final tagNameLower = tag.name.toLowerCase();
     final tagIdLower = tag.id.toLowerCase();
@@ -560,11 +560,6 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
     return fm.InkWell(
       onTap: () {
-        // При нажатии на элемент тега (не на чекбокс)
-        // отмечаем тег (переключаем состояние чекбокса)
-        final newValue = !(_selectedTags[tag.id] ?? false);
-        _toggleTagSelection(tag.id, newValue);
-
         setState(() {
           // Скрываем результаты поиска, но не очищаем строку
           _showSearchResults = false;
@@ -860,11 +855,6 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     final bool isExpanded = _expandedTags.contains(tag.id);
     final bool isGymTag = _isGymTag(tag);
 
-    // Отладочная информация только для критических случаев
-    if (isGymTag && childTags.isEmpty) {
-      dev.log('ВНИМАНИЕ: Тег тренажерного зала не имеет дочерних тегов');
-    }
-
     // Вычисляем цвет текста на основе уровня в иерархии
     // Максимальный уровень для градации цвета (предполагаем не более 5 уровней)
     const maxLevel = 5;
@@ -877,77 +867,90 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     return fm.Column(
       crossAxisAlignment: fm.CrossAxisAlignment.start,
       children: [
-        fm.InkWell(
-          onTap: () {
-            setState(() {
-              if (hasChildren) {
-                // Если есть дочерние элементы, переключаем их видимость
-                if (_expandedTags.contains(tag.id)) {
-                  _expandedTags.remove(tag.id);
-                } else {
-                  _expandedTags.add(tag.id);
-                }
-              }
+        fm.Container(
+          height: 40.0, // Фиксированная высота для всех элементов тега
+          padding: fm.EdgeInsets.only(left: 8.0 * level),
+          child: fm.Row(
+            crossAxisAlignment: fm.CrossAxisAlignment.center,
+            children: [
+              // Область с иконкой и текстом
+              fm.Expanded(
+                child: fm.InkWell(
+                  onTap: () {
+                    setState(() {
+                      if (hasChildren) {
+                        // Если есть дочерние элементы, переключаем их видимость
+                        if (_expandedTags.contains(tag.id)) {
+                          _expandedTags.remove(tag.id);
+                        } else {
+                          _expandedTags.add(tag.id);
+                        }
+                      }
+                      // Не переключаем чекбокс при нажатии на название
+                    });
+                  },
+                  child: fm.Row(
+                    crossAxisAlignment: fm.CrossAxisAlignment.center,
+                    children: [
+                      // Иконка раскрытия/сворачивания для тегов с дочерними элементами
+                      if (hasChildren)
+                        fm.SizedBox(
+                          width: 24.0, // Фиксированная ширина для иконки
+                          child: fm.Icon(
+                            isExpanded
+                                ? fm.Icons.keyboard_arrow_down
+                                : fm.Icons.arrow_forward_ios,
+                            color: textColor,
+                            size: isExpanded ? 20 : 16,
+                          ),
+                        )
+                      else
+                        fm.SizedBox(width: 24.0), // для выравнивания
 
-              // В любом случае, переключаем состояние чекбокса
-              if (!isGymTag) {
-                final newValue = !(_selectedTags[tag.id] ?? false);
-                _toggleTagSelection(tag.id, newValue);
-              }
-            });
-          },
-          child: fm.Padding(
-            padding: fm.EdgeInsets.only(left: 8.0 * level),
-            child: fm.Row(
-              children: [
-                // Иконка раскрытия/сворачивания для тегов с дочерними элементами
-                if (hasChildren)
-                  fm.Icon(
-                    isExpanded
-                        ? fm.Icons.keyboard_arrow_down
-                        : fm.Icons.arrow_forward_ios,
-                    color: textColor,
-                    size: isExpanded ? 20 : 16,
-                  )
-                else
-                  fm.SizedBox(width: 20), // для выравнивания
-
-                // Название тега
-                fm.Expanded(
-                  child: fm.Text(
-                    tag.name,
-                    style: fm.TextStyle(
-                      color: textColor,
-                      fontSize: 14 +
-                          (5 - level) *
-                              0.5, // Немного уменьшаем размер для вложенных уровней
-                      fontWeight: level == 0
-                          ? fm.FontWeight.bold
-                          : fm.FontWeight.normal,
-                    ),
+                      // Название тега
+                      fm.Expanded(
+                        child: fm.Text(
+                          tag.name,
+                          style: fm.TextStyle(
+                            color: textColor,
+                            fontSize: 14 +
+                                (5 - level) *
+                                    0.5, // Немного уменьшаем размер для вложенных уровней
+                            fontWeight: level == 0
+                                ? fm.FontWeight.bold
+                                : fm.FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
 
-                // Чекбокс для выбора тега (кроме тренажерного зала)
-                if (!isGymTag)
-                  fm.Theme(
-                    data: fm.ThemeData(
-                      checkboxTheme: fm.CheckboxThemeData(
-                        fillColor:
-                            fm.MaterialStateProperty.resolveWith<fm.Color>(
-                          (states) {
-                            if (states.contains(fm.MaterialState.selected)) {
-                              return textColor; // Выбранный цвет фона чекбокса
-                            }
-                            return _checkboxInactiveColor; // Новый цвет для неактивного чекбокса
-                          },
-                        ),
-                        checkColor: fm.MaterialStateProperty.all(
-                            fm.Colors.black), // Цвет галочки всегда черный
+              // Чекбокс (всегда присутствует, независимо от того, является ли тег "тренажерный зал")
+              fm.SizedBox(
+                width: 42.0, // Фиксированная ширина для чекбокса
+                child: fm.Theme(
+                  data: fm.ThemeData(
+                    checkboxTheme: fm.CheckboxThemeData(
+                      fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
+                        (states) {
+                          if (states.contains(fm.MaterialState.selected)) {
+                            return textColor; // Выбранный цвет фона чекбокса
+                          }
+                          return _checkboxInactiveColor; // Цвет для неактивного чекбокса
+                        },
                       ),
+                      checkColor: fm.MaterialStateProperty.all(
+                          fm.Colors.black), // Цвет галочки всегда черный
                     ),
+                  ),
+                  child: fm.Transform.scale(
+                    scale: 1.0, // Чтобы чекбокс был заметным
                     child: fm.Checkbox(
                       value: _selectedTags[tag.id] ?? false,
+                      materialTapTargetSize:
+                          fm.MaterialTapTargetSize.shrinkWrap,
                       onChanged: (value) {
                         setState(() {
                           if (value == true) {
@@ -959,8 +962,9 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                       },
                     ),
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
         ),
 
