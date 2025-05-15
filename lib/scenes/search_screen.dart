@@ -98,8 +98,20 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       final allTags = <TagData>[];
       _collectAllTags(rootTags, allTags);
 
-      // Загружаем все объекты для поиска
-      final placemarks = await _firestorePlacemarks.getSportObjectsBasic();
+      // Загружаем все объекты с полной информацией для поиска
+      // Используем getSportObjects вместо getSportObjectsBasic, чтобы получить адреса
+      final placemarks = await _firestorePlacemarks.getSportObjects();
+      dev.log('Загружено ${placemarks.length} объектов с полной информацией');
+
+      // Проверяем наличие адресов
+      int objectsWithAddress = 0;
+      for (final placemark in placemarks) {
+        if (placemark.address != null && placemark.address!.isNotEmpty) {
+          objectsWithAddress++;
+        }
+      }
+      dev.log(
+          'Объектов с адресами: $objectsWithAddress из ${placemarks.length}');
 
       // Автоматически раскрываем тег "тренажерный зал"
       _expandGymTags(rootTags);
@@ -107,7 +119,6 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       // Выводим информацию о всех тегах и их иерархии
       dev.log(
           'Загружено ${rootTags.length} корневых тегов и ${allTags.length} всего тегов');
-      dev.log('Загружено ${placemarks.length} объектов');
       _logTagsHierarchy(rootTags);
 
       if (mounted) {
@@ -263,73 +274,24 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Обрабатывает выбор объекта из результатов поиска
   void _onPlacemarkSelected(PlacemarkData placemark) {
-    // Загружаем полную информацию об объекте перед показом
-    _loadFullPlacemarkDetails(placemark).then((_) {
-      // Закрываем поиск и открываем страницу объекта
-      fm.Navigator.of(context).pop();
+    // Уже нет необходимости загружать полную информацию об объекте перед показом,
+    // так как мы уже получили полную информацию при загрузке данных
+    dev.log(
+        'Открываем страницу объекта: ${placemark.name}, адрес: "${placemark.address ?? ""}"');
 
-      // Показываем детали объекта
-      fm.showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: fm.Colors.transparent,
-        builder: (context) => ObjectDetailsSheet(
-          placemark: placemark,
-          distance: null, // Расстояние не известно на этом экране
-        ),
-      );
-    });
-  }
+    // Закрываем поиск и открываем страницу объекта
+    fm.Navigator.of(context).pop();
 
-  /// Загружает полную информацию об объекте
-  Future<void> _loadFullPlacemarkDetails(PlacemarkData placemark) async {
-    try {
-      // Получаем полные данные объекта через Firestore
-      final objectDoc = await FirebaseFirestore.instance
-          .collection('sportobjects')
-          .doc(placemark.id)
-          .get();
-
-      if (!objectDoc.exists) return;
-
-      final data = objectDoc.data()!;
-
-      // Обновляем описание
-      if (data.containsKey('description')) {
-        placemark.description = data['description'] as String?;
-      }
-
-      // Обновляем фото
-      if (data.containsKey('photo-urls')) {
-        try {
-          placemark.photoUrls = List<String>.from(data['photo-urls'] ?? []);
-        } catch (e) {
-          // Ошибка обработки фото
-        }
-      }
-
-      // Обновляем адрес
-      if (data.containsKey('address')) {
-        placemark.address = data['address'] as String?;
-      }
-
-      // Обновляем телефон
-      if (data.containsKey('phone')) {
-        placemark.phone = data['phone'] as String?;
-      }
-
-      // Загружаем теги объекта
-      try {
-        final objectTags = await _firestoreTags.loadTagsForObject(placemark.id);
-        if (objectTags.isNotEmpty) {
-          placemark.tags = objectTags.map((tag) => tag.id).toList();
-        }
-      } catch (e) {
-        // Ошибка загрузки тегов
-      }
-    } catch (e) {
-      dev.log('Ошибка при загрузке деталей объекта: $e');
-    }
+    // Показываем детали объекта
+    fm.showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: fm.Colors.transparent,
+      builder: (context) => ObjectDetailsSheet(
+        placemark: placemark,
+        distance: null, // Расстояние не известно на этом экране
+      ),
+    );
   }
 
   @override
@@ -634,11 +596,15 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     // Адрес объекта для отображения
     final address = placemark.address ?? '';
 
+    // Отладочный вывод для проверки адреса
+    dev.log('Отображаем объект в поиске: ${placemark.name}, адрес: "$address"');
+
     return fm.InkWell(
       onTap: () => _onPlacemarkSelected(placemark),
       child: fm.Padding(
         padding: const fm.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: fm.Row(
+          crossAxisAlignment: fm.CrossAxisAlignment.center,
           children: [
             // Иконка объекта
             const fm.Icon(
@@ -648,33 +614,35 @@ class _SearchScreenState extends fm.State<SearchScreen> {
             ),
             const fm.SizedBox(width: 12),
 
-            // Название объекта
+            // Название и адрес в вертикальном расположении
             fm.Expanded(
-              flex: 2, // Увеличиваем вес основного названия
-              child: fm.Text(
-                placemark.name,
-                style: const fm.TextStyle(
-                  color: fm.Colors.white,
-                  fontSize: 16,
-                ),
-                overflow: fm.TextOverflow.ellipsis,
+              child: fm.Column(
+                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                mainAxisSize: fm.MainAxisSize.min,
+                children: [
+                  // Название объекта
+                  fm.Text(
+                    placemark.name,
+                    style: const fm.TextStyle(
+                      color: fm.Colors.white,
+                      fontSize: 16,
+                    ),
+                    overflow: fm.TextOverflow.ellipsis,
+                  ),
+
+                  // Адрес объекта (если есть)
+                  if (address.isNotEmpty)
+                    fm.Text(
+                      address,
+                      style: const fm.TextStyle(
+                        color: fm.Colors.grey,
+                        fontSize: 14,
+                      ),
+                      overflow: fm.TextOverflow.ellipsis,
+                    ),
+                ],
               ),
             ),
-
-            // Адрес объекта (если есть) с ограниченной шириной
-            if (address.isNotEmpty)
-              fm.Expanded(
-                flex: 1, // Уменьшаем вес адреса
-                child: fm.Text(
-                  address,
-                  style: fm.TextStyle(
-                    color: fm.Colors.white.withOpacity(0.5),
-                    fontSize: 14,
-                  ),
-                  overflow: fm.TextOverflow.ellipsis,
-                  textAlign: fm.TextAlign.right,
-                ),
-              ),
           ],
         ),
       ),
