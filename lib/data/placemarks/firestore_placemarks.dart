@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:yandex_maps_mapkit/mapkit.dart' show Point;
 import 'placemark_model.dart';
+import '../tags/tag_model.dart';
 import 'dart:developer' as dev;
 import '../tags/firestore_tags.dart';
 
@@ -11,42 +12,47 @@ class FirestorePlacemarks {
   /// Загружает базовую информацию о спортивных объектах из Firestore (быстрая загрузка)
   Future<List<PlacemarkData>> getSportObjectsBasic() async {
     try {
+      // Получаем все документы из коллекции sportobjects
       final snapshot = await _firestore.collection('sportobjects').get();
-      final placemarks = <PlacemarkData>[];
 
+      dev.log('Загружены базовые данные для ${snapshot.docs.length} объектов');
+
+      // Преобразуем документы в объекты PlacemarkData
+      final placemarks = <PlacemarkData>[];
       for (final doc in snapshot.docs) {
         try {
+          // Создаем объект с минимально необходимыми данными
           final data = doc.data();
 
-          // Извлекаем только координаты и название (минимум для отображения)
-          final geoPoint = data['location'] as GeoPoint?;
-          if (geoPoint == null) continue;
+          if (data.containsKey('location') &&
+              data['location'] != null &&
+              data.containsKey('name') &&
+              data['name'] != null) {
+            // Получаем координаты
+            final geoPoint = data['location'] as GeoPoint;
 
-          // Создаем объект PlacemarkData только с базовой информацией
-          final placemark = PlacemarkData(
-            id: doc.id,
-            name: data['name'] as String? ?? 'Объект',
-            description: null, // Загрузим позже
-            location: Point(
-              latitude: geoPoint.latitude,
-              longitude: geoPoint.longitude,
-            ),
-            tags: [], // Загрузим позже
-            photoUrls: null, // Загрузим позже
-            address: null, // Загрузим позже
-            phone: null, // Загрузим позже
-          );
+            // Создаем объект с базовой информацией
+            final placemark = PlacemarkData(
+              id: doc.id,
+              name: data['name'] as String,
+              location: Point(
+                latitude: geoPoint.latitude,
+                longitude: geoPoint.longitude,
+              ),
+            );
 
-          placemarks.add(placemark);
+            placemarks.add(placemark);
+          }
         } catch (e) {
-          dev.log('Ошибка при обработке документа: $e');
+          // Упрощаем логирование ошибок для отдельных документов
+          dev.log(
+              'Ошибка при обработке документа: ${e.toString().substring(0, 100)}...');
         }
       }
 
-      dev.log('Базовая информация загружена: ${placemarks.length} объектов');
       return placemarks;
     } catch (e) {
-      dev.log('Ошибка при загрузке объектов: $e');
+      dev.log('Ошибка при получении базовых данных объектов: $e');
       return [];
     }
   }
@@ -54,80 +60,115 @@ class FirestorePlacemarks {
   /// Загружает полную информацию о спортивных объектах из Firestore
   Future<List<PlacemarkData>> getSportObjects() async {
     try {
-      final snapshot = await _firestore.collection('sportobjects').get();
-      final placemarks = <PlacemarkData>[];
+      // Если у нас уже есть объекты с базовой информацией, используем их
+      List<PlacemarkData> placemarks = await getSportObjectsBasic();
 
-      // Предварительно загружаем все теги для кэширования
-      await _firestoreTags.loadAllTags();
+      dev.log(
+          'Загружается полная информация для ${placemarks.length} объектов...');
 
-      for (final doc in snapshot.docs) {
+      // Предварительно загружаем все теги, чтобы использовать их кеш
+      dev.log(
+          '[Теги] Проверка кеша тегов перед загрузкой информации об объектах');
+      if (!_firestoreTags.isTagsCached) {
+        dev.log('[Теги] Кеш тегов пуст, предварительно загружаем все теги');
+        await _firestoreTags.loadAllTags();
+      } else {
+        dev.log('[Теги] Используем кешированные теги для объектов');
+      }
+
+      int objectsProcessed = 0;
+
+      // Для каждого объекта загружаем полную информацию
+      for (final placemark in placemarks) {
         try {
-          final data = doc.data();
+          // Получаем документ объекта
+          final doc = await _firestore
+              .collection('sportobjects')
+              .doc(placemark.id)
+              .get();
 
-          // Извлекаем координаты
-          final geoPoint = data['location'] as GeoPoint?;
-          if (geoPoint == null) continue;
-
-          // Извлекаем photo-urls если они есть
-          List<String>? photoUrls;
-          if (data.containsKey('photo-urls')) {
-            try {
-              photoUrls = List<String>.from(data['photo-urls'] ?? []);
-            } catch (e) {
-              // Ошибка обработки фото
-            }
+          if (!doc.exists) {
+            dev.log('Документ для объекта ${placemark.id} не найден');
+            continue;
           }
 
-          // Извлекаем адрес если он есть
-          String? address;
+          final data = doc.data() ?? {};
+
+          // Добавляем описание
+          if (data.containsKey('description')) {
+            placemark.description = data['description'] as String?;
+            dev.log('Загружено описание для ${placemark.name}');
+          }
+
+          // Добавляем адрес
           if (data.containsKey('address')) {
-            address = data['address'] as String?;
+            placemark.address = data['address'] as String?;
+            dev.log(
+                'Загружен адрес для ${placemark.name}: ${placemark.address}');
           }
 
-          // Извлекаем телефон если он есть
-          String? phone;
+          // Добавляем телефон
           if (data.containsKey('phone')) {
-            phone = data['phone'] as String?;
+            placemark.phone = data['phone'] as String?;
+            dev.log(
+                'Загружен телефон для ${placemark.name}: ${placemark.phone}');
           }
 
-          // Загружаем теги объекта через FirestoreTags
-          List<String> tagIds = [];
-          try {
-            // Загружаем теги для объекта
-            final objectTags = await _firestoreTags.loadTagsForObject(doc.id);
-            if (objectTags.isNotEmpty) {
-              // Получаем ID тегов для фильтрации
-              tagIds = objectTags.map((tag) => tag.id).toList();
+          // Проверяем наличие фотографий
+          if (data.containsKey('photo-urls') && data['photo-urls'] is List) {
+            placemark.photoUrls = List<String>.from(data['photo-urls'] as List);
+            if (placemark.photoUrls!.isNotEmpty) {
+              dev.log(
+                  'Загружено ${placemark.photoUrls!.length} фото для ${placemark.name}');
             }
-          } catch (e) {
-            // Ошибка загрузки тегов
+          } else {
+            // Нормальная ситуация, если у объекта нет фотографий
+            placemark.photoUrls = [];
           }
 
-          // Создаем объект PlacemarkData
-          final placemark = PlacemarkData(
-            id: doc.id,
-            name: data['name'] as String? ?? 'Неизвестный объект',
-            description: data['description'] as String?,
-            location: Point(
-              latitude: geoPoint.latitude,
-              longitude: geoPoint.longitude,
-            ),
-            tags: tagIds,
-            photoUrls: photoUrls,
-            address: address,
-            phone: phone,
-          );
+          // Загружаем теги для объекта
+          if (data.containsKey('tags') && data['tags'] is List) {
+            try {
+              final List<TagData> tagObjects =
+                  await _firestoreTags.loadTagsForObject(placemark.id);
+              // Преобразуем список объектов TagData в список идентификаторов String
+              placemark.tags = tagObjects.map((tag) => tag.id).toList();
+              dev.log(
+                  'Загружено ${placemark.tags.length} тегов для ${placemark.name}');
+            } catch (e) {
+              dev.log(
+                  'Ошибка при загрузке тегов для объекта ${placemark.id}: $e');
+            }
+          }
 
-          placemarks.add(placemark);
+          // Обновляем счетчик обработанных объектов
+          objectsProcessed++;
+          if (objectsProcessed % 5 == 0 ||
+              objectsProcessed == placemarks.length) {
+            dev.log(
+                'Загружена информация для $objectsProcessed объектов из ${placemarks.length}');
+          }
         } catch (e) {
-          dev.log('Ошибка при обработке документа: $e');
+          dev.log(
+              'Ошибка при загрузке полной информации для объекта ${placemark.id}: $e');
         }
       }
 
-      dev.log('Полная информация загружена: ${placemarks.length} объектов');
+      // Выводим сводку о загруженных данных
+      int objectsWithAddress = placemarks
+          .where((p) => p.address != null && p.address!.isNotEmpty)
+          .length;
+      int objectsWithPhone = placemarks
+          .where((p) => p.phone != null && p.phone!.isNotEmpty)
+          .length;
+
+      dev.log(
+          'ИТОГО загружены данные: адресов - $objectsWithAddress, телефонов - $objectsWithPhone');
+      dev.log('Завершена загрузка полной информации для всех объектов');
+
       return placemarks;
     } catch (e) {
-      dev.log('Ошибка при загрузке объектов: $e');
+      dev.log('Ошибка при получении объектов: $e');
       return [];
     }
   }
@@ -156,13 +197,16 @@ class FirestorePlacemarks {
           placemark.description = data['description'] as String?;
         }
 
-        // Обновляем фото
-        if (data.containsKey('photo-urls')) {
-          try {
-            placemark.photoUrls = List<String>.from(data['photo-urls'] ?? []);
-          } catch (e) {
-            // Ошибка обработки фото
+        // Проверяем только "photo-urls", так как именно это поле используется в Firestore
+        if (data.containsKey('photo-urls') && data['photo-urls'] is List) {
+          placemark.photoUrls = List<String>.from(data['photo-urls'] as List);
+          if (placemark.photoUrls!.isNotEmpty) {
+            dev.log(
+                'Обновлено ${placemark.photoUrls!.length} фото для ${placemark.name}');
           }
+        } else {
+          // Нормальная ситуация, если у объекта нет фотографий
+          placemark.photoUrls = [];
         }
 
         // Обновляем адрес

@@ -1,16 +1,25 @@
 // lib\scenes\search_screen.dart
 import 'package:flutter/material.dart' as fm;
 import 'dart:developer' as dev;
-import 'map_screen.dart'; // <- Импортируем MapScreen для доступа к MapSearchBar
+import 'map_screen.dart';
 import '../data/tags/firestore_tags.dart';
 import '../data/tags/tag_model.dart';
 import '../data/placemarks/firestore_placemarks.dart';
 import '../data/placemarks/placemark_model.dart';
 import '../widgets/object_details_sheet.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:collection';
 
 class SearchScreen extends fm.StatefulWidget {
-  const SearchScreen({super.key});
+  // Принимаем активные фильтры и расстояния до объектов
+  final List<String> activeTagFilters;
+  final HashMap<String, double> objectDistances;
+
+  const SearchScreen({
+    super.key,
+    this.activeTagFilters = const [],
+    required this.objectDistances,
+  });
 
   @override
   fm.State<SearchScreen> createState() => _SearchScreenState();
@@ -55,6 +64,9 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   final fm.Color _checkboxInactiveColor =
       const fm.Color.fromARGB(255, 63, 62, 62); // Цвет для неактивного чекбокса
 
+  // Для анимации подсветки иерархии
+  bool _isHierarchyHighlighted = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,11 +76,11 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     // Добавляем слушатель для обновления поиска при вводе текста
     _searchController.addListener(_onSearchChanged);
 
-    // увеличиваем задержку до 600мс (равна длительности анимации перехода)
+    // задержка (равна длительности анимации перехода)
     fm.WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_focusRequested) {
         _focusRequested = true;
-        Future.delayed(const Duration(milliseconds: 600), () {
+        Future.delayed(const Duration(milliseconds: 0), () {
           if (mounted) {
             _searchFocusNode.requestFocus();
             dev.log('Focus requested after hero animation');
@@ -77,8 +89,21 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       }
     });
 
+    // Инициализируем выбранные теги на основе переданных фильтров
+    _initSelectedTags();
+
     // Загружаем теги и объекты
     _loadData();
+  }
+
+  /// Инициализирует выбранные теги на основе активных фильтров
+  void _initSelectedTags() {
+    // Если есть активные фильтры, отмечаем их как выбранные
+    for (final tagId in widget.activeTagFilters) {
+      _selectedTags[tagId] = true;
+    }
+
+    dev.log('Инициализированы выбранные теги: $_selectedTags');
   }
 
   /// Загружает теги и объекты
@@ -91,8 +116,9 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     }
 
     try {
-      // Загружаем все теги
-      final rootTags = await _firestoreTags.loadAllTags();
+      // Пытаемся загрузить теги из кеша
+      dev.log('Пытаемся загрузить теги из кеша');
+      final rootTags = await _firestoreTags.getCachedTags();
 
       // Собираем все теги (корневые и дочерние) для поиска
       final allTags = <TagData>[];
@@ -116,10 +142,12 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       // Автоматически раскрываем тег "тренажерный зал"
       _expandGymTags(rootTags);
 
-      // Выводим информацию о всех тегах и их иерархии
+      // Раскрываем теги, которые выбраны
+      _expandSelectedTags(rootTags);
+
+      // Выводим сокращенную информацию о тегах
       dev.log(
           'Загружено ${rootTags.length} корневых тегов и ${allTags.length} всего тегов');
-      _logTagsHierarchy(rootTags);
 
       if (mounted) {
         setState(() {
@@ -129,7 +157,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
           _isLoading = false;
 
           // Запускаем анимацию появления после небольшой задержки
-          Future.delayed(const Duration(milliseconds: 200), () {
+          Future.delayed(const Duration(milliseconds: 0), () {
             if (mounted) {
               setState(() {
                 _showHierarchy = true;
@@ -145,6 +173,18 @@ class _SearchScreenState extends fm.State<SearchScreen> {
           _isLoading = false;
           _showHierarchy = true; // Показываем даже при ошибке
         });
+      }
+    }
+  }
+
+  /// Раскрывает теги, которые выбраны
+  void _expandSelectedTags(List<TagData> tags) {
+    for (final tagId in _selectedTags.keys) {
+      if (_selectedTags[tagId] == true) {
+        final tag = _findTagById(tagId);
+        if (tag != null) {
+          _expandParentsOfTag(tag);
+        }
       }
     }
   }
@@ -200,12 +240,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Рекурсивно выводит информацию об иерархии тегов для отладки
   void _logTagsHierarchy(List<TagData> tags, [int level = 0]) {
-    final indent = '  ' * level;
-    for (final tag in tags) {
-      dev.log(
-          '$indent- ${tag.name} (${tag.id}), childrenTags: ${tag.childrenTags.length}');
-      _logTagsHierarchy(tag.childrenTags, level + 1);
-    }
+    // Метод оставлен, но без содержимого - чтобы не выводить подробную информацию о тегах
   }
 
   /// Автоматически раскрывает тег "тренажерный зал" и его родительские теги
@@ -220,14 +255,11 @@ class _SearchScreenState extends fm.State<SearchScreen> {
           tagNameLower.contains('трена') ||
           tagIdLower.contains('gym') ||
           tagIdLower.contains('тренажер')) {
-        dev.log('Раскрываем тег тренажерного зала: ${tag.id}, ${tag.name}');
         _expandedTags.add(tag.id);
 
         // Если у тега есть родитель, нужно раскрыть и его
         TagData? currentParent = tag.parentTag;
         while (currentParent != null) {
-          dev.log(
-              'Раскрываем родительский тег: ${currentParent.id}, ${currentParent.name}');
           _expandedTags.add(currentParent.id);
           currentParent = currentParent.parentTag;
         }
@@ -237,8 +269,6 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     // Если тегов тренажерного зала не найдено, выводим сообщение
     if (_expandedTags.isEmpty) {
       dev.log('ВНИМАНИЕ: Теги тренажерного зала не найдены!');
-    } else {
-      dev.log('Автоматически раскрыто тегов: ${_expandedTags.length}');
     }
   }
 
@@ -279,6 +309,16 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     dev.log(
         'Открываем страницу объекта: ${placemark.name}, адрес: "${placemark.address ?? ""}"');
 
+    // Создаем идентификатор объекта для поиска расстояния
+    final placemarkId =
+        '${placemark.name}_${placemark.location.latitude}_${placemark.location.longitude}';
+
+    // Получаем расстояние до объекта, если оно есть
+    final distance = widget.objectDistances[placemarkId];
+
+    dev.log(
+        'Расстояние до объекта: ${distance != null ? "${distance.toStringAsFixed(1)} м" : "неизвестно"}');
+
     // Закрываем поиск и открываем страницу объекта
     fm.Navigator.of(context).pop();
 
@@ -289,7 +329,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       backgroundColor: fm.Colors.transparent,
       builder: (context) => ObjectDetailsSheet(
         placemark: placemark,
-        distance: null, // Расстояние не известно на этом экране
+        distance: distance, // Передаем расстояние
       ),
     );
   }
@@ -307,6 +347,19 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   fm.Widget build(fm.BuildContext context) {
     // Проверяем, есть ли выбранные теги
     final bool hasSelectedTags = _selectedTags.values.contains(true);
+
+    // Список названий выбранных тегов для отображения
+    final List<String> selectedTagNames = [];
+    if (hasSelectedTags) {
+      for (final tagId in _selectedTags.keys) {
+        if (_selectedTags[tagId] == true) {
+          final tag = _findTagById(tagId);
+          if (tag != null) {
+            selectedTagNames.add(tag.name);
+          }
+        }
+      }
+    }
 
     return fm.Scaffold(
       backgroundColor: fm.Colors.black, // Черный фон
@@ -375,31 +428,33 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                 child: _isLoading
                     ? const fm
                         .SizedBox() // заменяем спиннер на пустой контейнер
-                    : _buildTagsHierarchyView(),
+                    : _buildTagsHierarchyView(selectedTagNames),
               ),
 
               // Кнопка "Применить" - всегда видима, но может быть неактивной
-              fm.Padding(
-                padding: const fm.EdgeInsets.all(16.0),
-                child: fm.Align(
-                  alignment: fm.Alignment.bottomRight,
-                  child: fm.ElevatedButton(
-                    onPressed: hasSelectedTags
-                        ? _applyFilters
-                        : null, // Неактивна, если нет выбранных тегов
-                    style: fm.ElevatedButton.styleFrom(
-                      backgroundColor:
-                          hasSelectedTags ? _startColor : fm.Colors.grey,
-                      foregroundColor: fm.Colors.white,
-                      padding: const fm.EdgeInsets.symmetric(
-                          horizontal: 24.0, vertical: 12.0),
-                      // Убеждаемся, что кнопка всегда видима
-                      disabledBackgroundColor: fm.Colors.grey,
-                      disabledForegroundColor: fm.Colors.white70,
-                    ),
-                    child: const fm.Text(
-                      'Применить',
-                      style: fm.TextStyle(fontSize: 16.0),
+              fm.SafeArea(
+                child: fm.Padding(
+                  padding: const fm.EdgeInsets.all(16.0),
+                  child: fm.Align(
+                    alignment: fm.Alignment.bottomRight,
+                    child: fm.ElevatedButton(
+                      onPressed: hasSelectedTags
+                          ? _applyFilters
+                          : null, // Неактивна, если нет выбранных тегов
+                      style: fm.ElevatedButton.styleFrom(
+                        backgroundColor:
+                            hasSelectedTags ? _startColor : fm.Colors.grey,
+                        foregroundColor: fm.Colors.white,
+                        padding: const fm.EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 12.0),
+                        // Убеждаемся, что кнопка всегда видима
+                        disabledBackgroundColor: fm.Colors.grey,
+                        disabledForegroundColor: fm.Colors.white70,
+                      ),
+                      child: const fm.Text(
+                        'Применить',
+                        style: fm.TextStyle(fontSize: 16.0),
+                      ),
                     ),
                   ),
                 ),
@@ -505,14 +560,30 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
     return fm.InkWell(
       onTap: () {
-        // При нажатии на элемент тега (не на чекбокс) скрываем результаты поиска
+        // При нажатии на элемент тега (не на чекбокс)
+        // отмечаем тег (переключаем состояние чекбокса)
+        final newValue = !(_selectedTags[tag.id] ?? false);
+        _toggleTagSelection(tag.id, newValue);
+
         setState(() {
+          // Скрываем результаты поиска, но не очищаем строку
           _showSearchResults = false;
-          _searchController.clear();
+
+          // Запускаем анимацию подсветки иерархии
+          _isHierarchyHighlighted = true;
         });
 
         // Находим тег в иерархии и раскрываем его родителей
         _expandParentsOfTag(tag);
+
+        // Сбрасываем подсветку через некоторое время
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            setState(() {
+              _isHierarchyHighlighted = false;
+            });
+          }
+        });
       },
       child: fm.Padding(
         padding: const fm.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -549,7 +620,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                 child: fm.Text(
                   parentName,
                   style: fm.TextStyle(
-                    color: fm.Colors.white.withOpacity(0.5),
+                    color: fm.Colors.grey.shade400,
                     fontSize: 14,
                   ),
                   overflow: fm.TextOverflow.ellipsis,
@@ -653,6 +724,8 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   void _expandParentsOfTag(TagData tag) {
     // Добавляем сам тег в список развернутых
     setState(() {
+      _expandedTags.add(tag.id);
+
       // Раскрываем родительские теги
       TagData? currentParent = tag.parentTag;
       while (currentParent != null) {
@@ -680,7 +753,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   }
 
   /// Строит представление иерархии тегов
-  fm.Widget _buildTagsHierarchyView() {
+  fm.Widget _buildTagsHierarchyView(List<String> selectedTagNames) {
     if (_rootTags.isEmpty) {
       return const fm.Center(
         child: fm.Text(
@@ -704,19 +777,22 @@ class _SearchScreenState extends fm.State<SearchScreen> {
             ),
           ),
           const fm.SizedBox(height: 16),
+
+          // Блок иерархии тегов (расширяемый)
           fm.Expanded(
             child: fm.AnimatedOpacity(
               opacity: _showHierarchy ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 900),
               curve: fm.Curves.easeInOut,
-              child: fm.Container(
-                // Убираем отступы
-                padding: const fm.EdgeInsets.all(8),
+              child: fm.AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 decoration: fm.BoxDecoration(
-                  // Меняем цвет с серого на черный
-                  color: fm.Colors.black,
+                  color: _isHierarchyHighlighted
+                      ? fm.Colors.grey.withOpacity(0.15)
+                      : fm.Colors.black,
                   borderRadius: fm.BorderRadius.circular(8),
                 ),
+                padding: const fm.EdgeInsets.all(8),
                 child: fm.SingleChildScrollView(
                   child: fm.Column(
                     crossAxisAlignment: fm.CrossAxisAlignment.start,
@@ -726,6 +802,34 @@ class _SearchScreenState extends fm.State<SearchScreen> {
               ),
             ),
           ),
+
+          // Информация о выбранных тегах
+          if (selectedTagNames.isNotEmpty)
+            fm.Padding(
+              padding: const fm.EdgeInsets.only(top: 16.0),
+              child: fm.Row(
+                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                children: [
+                  fm.Text(
+                    'Выбраны теги: ',
+                    style: fm.TextStyle(
+                      color: fm.Colors.grey.shade400,
+                      fontSize: 14,
+                    ),
+                  ),
+                  fm.Expanded(
+                    child: fm.Text(
+                      selectedTagNames.join(', '),
+                      style: fm.TextStyle(
+                        color: fm.Colors.white,
+                        fontSize: 14,
+                        fontWeight: fm.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -733,14 +837,13 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
   /// Создает список корневых тегов
   List<fm.Widget> _buildTagsList() {
-    // Отладочное сообщение о корневых тегах
-    dev.log(
-        'Построение списка тегов: найдено ${_rootTags.where((tag) => tag.parent == null).length} корневых тегов');
+    // Проверка наличия корневых тегов
+    if (_rootTags.isEmpty) {
+      dev.log('[Поиск] Нет корневых тегов для отображения');
+      return [];
+    }
 
     final result = <fm.Widget>[];
-
-    // Для отладки выводим содержимое _expandedTags
-    dev.log('Содержимое _expandedTags: ${_expandedTags.toList()}');
 
     for (final rootTag in _rootTags.where((tag) => tag.parent == null)) {
       result.add(_buildTagItem(rootTag, 0));
@@ -757,12 +860,9 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     final bool isExpanded = _expandedTags.contains(tag.id);
     final bool isGymTag = _isGymTag(tag);
 
-    // Отладочная информация о теге
-    if (isGymTag) {
-      dev.log(
-          'Построение элемента для тега тренажерного зала: ${tag.id}, hasChildren: $hasChildren, isExpanded: $isExpanded');
-      dev.log(
-          'Дочерние теги: ${childTags.map((t) => "${t.name} (${t.id})").toList()}');
+    // Отладочная информация только для критических случаев
+    if (isGymTag && childTags.isEmpty) {
+      dev.log('ВНИМАНИЕ: Тег тренажерного зала не имеет дочерних тегов');
     }
 
     // Вычисляем цвет текста на основе уровня в иерархии
@@ -778,19 +878,24 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       crossAxisAlignment: fm.CrossAxisAlignment.start,
       children: [
         fm.InkWell(
-          onTap: hasChildren
-              ? () {
-                  setState(() {
-                    if (_expandedTags.contains(tag.id)) {
-                      _expandedTags.remove(tag.id);
-                    } else {
-                      _expandedTags.add(tag.id);
-                    }
-                    dev.log(
-                        'Переключение состояния тега ${tag.id}: ${_expandedTags.contains(tag.id) ? 'раскрыт' : 'свернут'}');
-                  });
+          onTap: () {
+            setState(() {
+              if (hasChildren) {
+                // Если есть дочерние элементы, переключаем их видимость
+                if (_expandedTags.contains(tag.id)) {
+                  _expandedTags.remove(tag.id);
+                } else {
+                  _expandedTags.add(tag.id);
                 }
-              : null,
+              }
+
+              // В любом случае, переключаем состояние чекбокса
+              if (!isGymTag) {
+                final newValue = !(_selectedTags[tag.id] ?? false);
+                _toggleTagSelection(tag.id, newValue);
+              }
+            });
+          },
           child: fm.Padding(
             padding: fm.EdgeInsets.only(left: 8.0 * level),
             child: fm.Row(

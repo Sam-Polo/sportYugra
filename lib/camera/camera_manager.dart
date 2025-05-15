@@ -1,8 +1,5 @@
-import 'dart:async';
 import 'package:yandex_maps_mapkit/mapkit.dart';
 import '../location/location_listener_impl.dart';
-import 'camera_position_listener.dart';
-import 'dart:developer' as dev;
 
 class CameraManager {
   final MapWindow _mapWindow;

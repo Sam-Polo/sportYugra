@@ -49,6 +49,12 @@ class MapObjectsManager {
   // Активные фильтры (ID тегов)
   List<String> _activeTagFilters = [];
 
+  // Для ограничения вывода логов фильтрации
+  int _loggedFilterCheckCount = 0;
+
+  // Флаг для детального логирования фильтрации
+  bool _loggedFilterDetails = false;
+
   MapObjectsManager(this._mapWindow, {required this.onMapObjectTap}) {
     _mapObjectTapListener =
         MapObjectTapListenerImpl(onMapObjectTapped: _onMapObjectTapped);
@@ -65,7 +71,7 @@ class MapObjectsManager {
   /// Устанавливает активные фильтры тегов и обновляет отображаемые объекты
   void setTagFilters(List<String> tagIds) {
     _activeTagFilters = tagIds;
-    dev.log('Установлены фильтры тегов: $_activeTagFilters');
+    dev.log('[Фильтры] Установлены фильтры тегов: $_activeTagFilters');
 
     // Если у нас уже есть плейсмарки, применяем к ним фильтры
     if (_allPlacemarks.isNotEmpty) {
@@ -76,7 +82,7 @@ class MapObjectsManager {
   /// Очищает все фильтры
   void clearFilters() {
     _activeTagFilters = [];
-    dev.log('Фильтры тегов очищены');
+    dev.log('[Фильтры] Фильтры тегов очищены');
 
     // Если у нас уже есть плейсмарки, отображаем их все
     if (_allPlacemarks.isNotEmpty) {
@@ -91,9 +97,18 @@ class MapObjectsManager {
       return true;
     }
 
-    // Выводим теги объекта для отладки
-    dev.log('Проверка объекта ${placemark.name} с тегами: ${placemark.tags}');
-    dev.log('Активные фильтры: $_activeTagFilters');
+    // Выводим детальный лог только для одного объекта, чтобы можно было убедиться в работе фильтров
+    if (!_loggedFilterDetails && _loggedFilterCheckCount == 0) {
+      dev.log(
+          '[Фильтры] Детали фильтрации для проверки: объект ${placemark.name} с тегами: ${placemark.tags}');
+      dev.log('[Фильтры] Активные фильтры: $_activeTagFilters');
+      _loggedFilterDetails = true;
+    }
+
+    // Увеличиваем счетчик проверенных объектов (для лога)
+    if (_loggedFilterCheckCount < 5) {
+      _loggedFilterCheckCount++;
+    }
 
     // Проверяем, содержит ли плейсмарк все выбранные теги
     for (final tagId in _activeTagFilters) {
@@ -103,7 +118,6 @@ class MapObjectsManager {
     }
 
     // Если все теги найдены, объект соответствует фильтрам
-    dev.log('Объект ${placemark.name} соответствует фильтрам');
     return true;
   }
 
@@ -118,7 +132,7 @@ class MapObjectsManager {
     // Фильтруем плейсмарки
     final filteredPlacemarks = _allPlacemarks.where(_matchesFilters).toList();
     dev.log(
-        'Отфильтровано ${filteredPlacemarks.length} из ${_allPlacemarks.length} объектов');
+        '[Фильтры] Отображено ${filteredPlacemarks.length} из ${_allPlacemarks.length} объектов');
 
     // Добавляем отфильтрованные плейсмарки на карту
     _addPlacemarksWithAnimation(filteredPlacemarks);
@@ -350,12 +364,12 @@ class MapObjectsManager {
     return _placemarksWithVisibleText.contains(placemarkId);
   }
 
-  /// Обновляет отображение объектов с учетом текущих фильтров
+  /// Обновляет отображение объектов с текущими фильтрами
   void refreshWithFilters() {
-    dev.log('Обновление объектов с учетом текущих фильтров');
-
-    // Если есть активные фильтры, применяем их заново
+    dev.log(
+        '[Фильтры] Обновление объектов после получения детальной информации');
     if (_activeTagFilters.isNotEmpty) {
+      // Если есть активные фильтры, перезапускаем фильтрацию на обновленных данных
       _refreshPlacemarks();
     }
   }

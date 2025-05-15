@@ -49,7 +49,9 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   /// Предзагрузка всех изображений для галереи
   void _precacheAllImages() {
     if (widget.placemark.photoUrls == null ||
-        widget.placemark.photoUrls!.isEmpty) return;
+        widget.placemark.photoUrls!.isEmpty) {
+      return;
+    }
 
     dev.log(
         'Начинаем предзагрузку ${widget.placemark.photoUrls!.length} изображений');
@@ -123,7 +125,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
     var formattedNumber = digitsOnly;
     if (formattedNumber.length == 11) {
       if (formattedNumber.startsWith('8') || formattedNumber.startsWith('7')) {
-        formattedNumber = '7' + formattedNumber.substring(1);
+        formattedNumber = '7${formattedNumber.substring(1)}';
       }
     }
 
@@ -165,7 +167,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       }
 
       final tags = await _firestoreTags.loadTagsForObject(objectId);
-      dev.log('Загружено ${tags.length} тегов для объекта ${objectId}');
+      dev.log('Загружено ${tags.length} тегов для объекта $objectId');
 
       if (mounted) {
         setState(() {
@@ -737,13 +739,13 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   Future<void> _launchRoute(double latitude, double longitude) async {
     // URL для Яндекс Карт (построение маршрута от текущей позиции до указанных координат)
     final yandexMapsUrl = Uri.parse(
-        'yandexmaps://maps.yandex.ru/?rtext=~${latitude},${longitude}&rtt=auto');
+        'yandexmaps://maps.yandex.ru/?rtext=~$latitude,$longitude&rtt=auto');
     // URL для 2ГИС (построение маршрута)
     final dgisUrl = Uri.parse(
-        'dgis://2gis.ru/routeSearch/rsType/car/to/${longitude},${latitude}');
+        'dgis://2gis.ru/routeSearch/rsType/car/to/$longitude,$latitude');
     // URL для Google Карт (веб версия для построения маршрута)
     final googleMapsUrl = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving');
+        'https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude&travelmode=driving');
 
     dev.log('Попытка открыть маршрут для координат: $latitude, $longitude');
 

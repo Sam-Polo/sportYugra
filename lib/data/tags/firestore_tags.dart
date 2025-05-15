@@ -2,18 +2,43 @@ import 'dart:developer' as dev;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'tag_model.dart';
 
-/// Сервис для работы с тегами из Firestore
+/// Сервис для работы с тегами из Firestore (реализация синглтона)
 class FirestoreTags {
+  // Синглтон инстанс
+  static final FirestoreTags _instance = FirestoreTags._internal();
+
+  // Фабрика для получения одного экземпляра
+  factory FirestoreTags() {
+    return _instance;
+  }
+
+  // Приватный конструктор
+  FirestoreTags._internal();
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Кэш загруженных тегов для быстрого доступа
   final Map<String, TagData> _tagsCache = {};
 
+  // Флаг, указывающий, что все теги уже загружены
+  bool _allTagsLoaded = false;
+
+  // Список корневых тегов (для быстрого доступа)
+  List<TagData> _rootTagsList = [];
+
   /// Загружает все теги и строит их иерархию
   Future<List<TagData>> loadAllTags() async {
+    // Если теги уже загружены, возвращаем их из кеша
+    if (_allTagsLoaded) {
+      dev.log(
+          '[Теги] Возвращаем все теги из кеша (${_rootTagsList.length} корневых тегов)');
+      return _rootTagsList;
+    }
+
     try {
       // Очищаем кэш перед загрузкой
       _tagsCache.clear();
+      dev.log('[Теги] Начинаем загрузку всех тегов из Firestore...');
 
       // Загружаем все теги из коллекции tags
       final tagsSnapshot = await _firestore.collection('tags').get();
@@ -22,7 +47,6 @@ class FirestoreTags {
       for (final doc in tagsSnapshot.docs) {
         final tag = TagData.fromFirestore(doc);
         _tagsCache[tag.id] = tag;
-        dev.log('Загружен тег: ${tag.name} (${tag.id})');
       }
 
       // Строим иерархию тегов
@@ -31,13 +55,39 @@ class FirestoreTags {
       // Проверяем на ошибки в иерархии
       _validateTagsHierarchy();
 
+      // Сохраняем корневые теги в отдельный список для быстрого доступа
+      _rootTagsList =
+          _tagsCache.values.where((tag) => tag.parent == null).toList();
+
+      // Устанавливаем флаг, что все теги загружены
+      _allTagsLoaded = true;
+
+      dev.log(
+          '[Теги] Загружено и кешировано ${_tagsCache.length} тегов (${_rootTagsList.length} корневых)');
+
       // Возвращаем только корневые теги (без родителей)
-      return _tagsCache.values.where((tag) => tag.parent == null).toList();
+      return _rootTagsList;
     } catch (e) {
-      dev.log('Ошибка при загрузке тегов: $e');
+      dev.log('[Теги] Ошибка при загрузке тегов: $e');
       return [];
     }
   }
+
+  /// Возвращает теги из кеша, если они уже загружены, или загружает их
+  Future<List<TagData>> getCachedTags() async {
+    if (_allTagsLoaded) {
+      dev.log(
+          '[Теги] КЕШИРОВАНИЕ: Используем ${_rootTagsList.length} корневых тегов из кеша (без загрузки из Firestore)');
+      return _rootTagsList;
+    } else {
+      dev.log(
+          '[Теги] КЕШИРОВАНИЕ: Теги не найдены в кеше, загружаем из Firestore...');
+      return loadAllTags();
+    }
+  }
+
+  /// Проверяет, загружены ли все теги
+  bool get isTagsCached => _allTagsLoaded;
 
   /// Загружает теги для конкретного объекта
   Future<List<TagData>> loadTagsForObject(String objectId) async {
@@ -47,7 +97,6 @@ class FirestoreTags {
           await _firestore.collection('sportobjects').doc(objectId).get();
 
       if (!objectDoc.exists || !objectDoc.data()!.containsKey('tags')) {
-        dev.log('Объект не существует или не содержит тегов: $objectId');
         return [];
       }
 
@@ -56,7 +105,6 @@ class FirestoreTags {
           List<DocumentReference>.from(objectDoc.data()!['tags'] ?? []);
 
       if (tagRefs.isEmpty) {
-        dev.log('Объект не имеет тегов: $objectId');
         return [];
       }
 
@@ -81,14 +129,14 @@ class FirestoreTags {
               objectTags.add(tag);
             }
           } catch (e) {
-            dev.log('Ошибка при загрузке тега $tagId: $e');
+            dev.log('[Теги] Ошибка при загрузке тега $tagId: $e');
           }
         }
       }
 
       return objectTags;
     } catch (e) {
-      dev.log('Ошибка при загрузке тегов для объекта: $e');
+      dev.log('[Теги] Ошибка при загрузке тегов для объекта: $e');
       return [];
     }
   }
@@ -102,10 +150,6 @@ class FirestoreTags {
         final parentId = tag.parent!.id;
         if (_tagsCache.containsKey(parentId)) {
           tag.parentTag = _tagsCache[parentId];
-          dev.log('Установлен родитель для ${tag.id} - ${tag.parentTag?.id}');
-        } else {
-          dev.log(
-              'ВНИМАНИЕ: Родительский тег не найден: $parentId для ${tag.id}');
         }
       }
 
@@ -114,10 +158,6 @@ class FirestoreTags {
         final childId = childRef.id;
         if (_tagsCache.containsKey(childId)) {
           tag.childrenTags.add(_tagsCache[childId]!);
-          dev.log(
-              'Добавлен дочерний тег ${_tagsCache[childId]!.id} для ${tag.id}');
-        } else {
-          dev.log('ВНИМАНИЕ: Дочерний тег не найден: $childId для ${tag.id}');
         }
       }
     }
@@ -134,7 +174,7 @@ class FirestoreTags {
         final parentId = tag.parent!.id;
         if (!_tagsCache.containsKey(parentId)) {
           dev.log(
-              'ОШИБКА: Родительский тег не существует: $parentId для ${tag.id}');
+              '[Теги] ОШИБКА: Родительский тег не существует: $parentId для ${tag.id}');
           errorCount++;
         } else {
           // Проверяем, что родитель содержит этот тег в своих children
@@ -142,7 +182,7 @@ class FirestoreTags {
           final hasChildRef = parentTag.children.any((ref) => ref.id == tag.id);
           if (!hasChildRef) {
             dev.log(
-                'ОШИБКА: Родитель ${parentTag.id} не содержит ссылку на дочерний тег ${tag.id}');
+                '[Теги] ОШИБКА: Родитель ${parentTag.id} не содержит ссылку на дочерний тег ${tag.id}');
             errorCount++;
           }
         }
@@ -152,14 +192,15 @@ class FirestoreTags {
       for (final childRef in tag.children) {
         final childId = childRef.id;
         if (!_tagsCache.containsKey(childId)) {
-          dev.log('ОШИБКА: Дочерний тег не существует: $childId для ${tag.id}');
+          dev.log(
+              '[Теги] ОШИБКА: Дочерний тег не существует: $childId для ${tag.id}');
           errorCount++;
         } else {
           // Проверяем, что дочерний тег указывает на этот тег как на родителя
           final childTag = _tagsCache[childId]!;
           if (childTag.parent == null || childTag.parent!.id != tag.id) {
             dev.log(
-                'ОШИБКА: Дочерний тег ${childTag.id} не указывает на ${tag.id} как на родителя');
+                '[Теги] ОШИБКА: Дочерний тег ${childTag.id} не указывает на ${tag.id} как на родителя');
             errorCount++;
           }
         }
@@ -167,9 +208,7 @@ class FirestoreTags {
     }
 
     if (errorCount > 0) {
-      dev.log('ВНИМАНИЕ: Найдено $errorCount ошибок в иерархии тегов');
-    } else {
-      dev.log('Иерархия тегов проверена, ошибок не найдено');
+      dev.log('[Теги] ВНИМАНИЕ: Найдено $errorCount ошибок в иерархии тегов');
     }
   }
 
@@ -199,5 +238,13 @@ class FirestoreTags {
     for (final childTag in tag.childrenTags) {
       _appendTagHierarchy(buffer, childTag, level + 1);
     }
+  }
+
+  /// Очищает кеш тегов (для тестирования)
+  void clearCache() {
+    _tagsCache.clear();
+    _rootTagsList.clear();
+    _allTagsLoaded = false;
+    dev.log('[Теги] Кеш тегов очищен');
   }
 }
