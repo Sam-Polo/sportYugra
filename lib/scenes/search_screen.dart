@@ -14,11 +14,14 @@ class SearchScreen extends fm.StatefulWidget {
   // Принимаем активные фильтры и расстояния до объектов
   final List<String> activeTagFilters;
   final HashMap<String, double> objectDistances;
+  // Добавляем новый параметр для передачи уже загруженных объектов
+  final List<PlacemarkData>? preloadedPlacemarks;
 
   const SearchScreen({
     super.key,
     this.activeTagFilters = const [],
     required this.objectDistances,
+    this.preloadedPlacemarks,
   });
 
   @override
@@ -76,11 +79,11 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     // Добавляем слушатель для обновления поиска при вводе текста
     _searchController.addListener(_onSearchChanged);
 
-    // задержка (равна длительности анимации перехода)
+    // задержка фокус поиска (равна длительности анимации перехода)
     fm.WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_focusRequested) {
         _focusRequested = true;
-        Future.delayed(const Duration(milliseconds: 0), () {
+        Future.delayed(const Duration(milliseconds: 700), () {
           if (mounted) {
             _searchFocusNode.requestFocus();
             dev.log('Focus requested after hero animation');
@@ -124,20 +127,20 @@ class _SearchScreenState extends fm.State<SearchScreen> {
       final allTags = <TagData>[];
       _collectAllTags(rootTags, allTags);
 
-      // Загружаем все объекты с полной информацией для поиска
-      // Используем getSportObjects вместо getSportObjectsBasic, чтобы получить адреса
-      final placemarks = await _firestorePlacemarks.getSportObjects();
-      dev.log('Загружено ${placemarks.length} объектов с полной информацией');
-
-      // Проверяем наличие адресов
-      int objectsWithAddress = 0;
-      for (final placemark in placemarks) {
-        if (placemark.address != null && placemark.address!.isNotEmpty) {
-          objectsWithAddress++;
-        }
+      // Используем предзагруженные объекты если они переданы в виджет
+      List<PlacemarkData> placemarks;
+      if (widget.preloadedPlacemarks != null &&
+          widget.preloadedPlacemarks!.isNotEmpty) {
+        dev.log(
+            'Используем ${widget.preloadedPlacemarks!.length} предзагруженных объектов');
+        placemarks = widget.preloadedPlacemarks!;
+      } else {
+        // Если предзагруженных объектов нет, загружаем данные о них
+        dev.log('Предзагруженные объекты отсутствуют, загружаем данные');
+        // Используем getSportObjectsBasic вместо getSportObjects для быстрой загрузки
+        placemarks = await _firestorePlacemarks.getSportObjectsBasic();
+        dev.log('Загружена базовая информация о ${placemarks.length} объектах');
       }
-      dev.log(
-          'Объектов с адресами: $objectsWithAddress из ${placemarks.length}');
 
       // Автоматически раскрываем тег "тренажерный зал"
       _expandGymTags(rootTags);
@@ -157,7 +160,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
           _isLoading = false;
 
           // Запускаем анимацию появления после небольшой задержки
-          Future.delayed(const Duration(milliseconds: 0), () {
+          Future.delayed(const Duration(milliseconds: 500), () {
             if (mounted) {
               setState(() {
                 _showHierarchy = true;
@@ -430,36 +433,42 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                         .SizedBox() // заменяем спиннер на пустой контейнер
                     : _buildTagsHierarchyView(selectedTagNames),
               ),
+            ],
+          ),
 
-              // Кнопка "Применить" - всегда видима, но может быть неактивной
-              fm.SafeArea(
-                child: fm.Padding(
-                  padding: const fm.EdgeInsets.all(16.0),
-                  child: fm.Align(
-                    alignment: fm.Alignment.bottomRight,
-                    child: fm.ElevatedButton(
-                      onPressed: hasSelectedTags
-                          ? _applyFilters
-                          : null, // Неактивна, если нет выбранных тегов
-                      style: fm.ElevatedButton.styleFrom(
-                        backgroundColor:
-                            hasSelectedTags ? _startColor : fm.Colors.grey,
-                        foregroundColor: fm.Colors.white,
-                        padding: const fm.EdgeInsets.symmetric(
-                            horizontal: 24.0, vertical: 12.0),
-                        // Убеждаемся, что кнопка всегда видима
-                        disabledBackgroundColor: fm.Colors.grey,
-                        disabledForegroundColor: fm.Colors.white70,
-                      ),
-                      child: const fm.Text(
-                        'Применить',
-                        style: fm.TextStyle(fontSize: 16.0),
-                      ),
-                    ),
+          // Кнопка "Применить" - позиционируем над клавиатурой
+          fm.Positioned(
+            left: 0,
+            right: 0,
+            bottom: fm.MediaQuery.of(context)
+                .viewInsets
+                .bottom, // Учитываем клавиатуру
+            child: fm.Container(
+              color: fm.Colors.black,
+              padding: const fm.EdgeInsets.all(16.0),
+              child: fm.Align(
+                alignment: fm.Alignment.bottomRight,
+                child: fm.ElevatedButton(
+                  onPressed: hasSelectedTags
+                      ? _applyFilters
+                      : null, // Неактивна, если нет выбранных тегов
+                  style: fm.ElevatedButton.styleFrom(
+                    backgroundColor:
+                        hasSelectedTags ? _startColor : fm.Colors.grey,
+                    foregroundColor: fm.Colors.white,
+                    padding: const fm.EdgeInsets.symmetric(
+                        horizontal: 24.0, vertical: 12.0),
+                    // Убеждаемся, что кнопка всегда видима
+                    disabledBackgroundColor: fm.Colors.grey,
+                    disabledForegroundColor: fm.Colors.white70,
+                  ),
+                  child: const fm.Text(
+                    'Применить',
+                    style: fm.TextStyle(fontSize: 16.0),
                   ),
                 ),
               ),
-            ],
+            ),
           ),
 
           // Результаты поиска поверх основного контента (если есть)

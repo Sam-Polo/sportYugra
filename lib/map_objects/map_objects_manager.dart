@@ -373,4 +373,9 @@ class MapObjectsManager {
       _refreshPlacemarks();
     }
   }
+
+  /// Возвращает список всех плейсмарков
+  List<PlacemarkData> getPlacemarks() {
+    return [..._allPlacemarks]; // Возвращаем копию списка
+  }
 }

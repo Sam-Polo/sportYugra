@@ -887,9 +887,10 @@ class _MapScreenState extends fm.State<MapScreen>
 
   /// Очищает все активные фильтры
   void _clearAllFilters() {
-    // Очищаем список активных фильтров
+    // Очищаем список активных фильтров и скрываем кнопку очистки
     setState(() {
       _activeTagFilters.clear();
+      _hasActiveFilters = false; // Скрываем кнопку очистки фильтров
     });
 
     // Обновляем отображение объектов с пустыми фильтрами
@@ -903,12 +904,22 @@ class _MapScreenState extends fm.State<MapScreen>
   void _openSearchScreen(fm.BuildContext context) async {
     dev.log('Search bar tapped, initiating transition...');
 
+    // Передаем предзагруженные объекты на экран поиска, чтобы избежать повторной загрузки
+    List<PlacemarkData>? preloadedObjects;
+    if (_mapObjectsManager != null) {
+      preloadedObjects = _mapObjectsManager!.getPlacemarks();
+      dev.log(
+          'Передаем ${preloadedObjects.length} предзагруженных объектов на экран поиска');
+    }
+
     // Открываем экран поиска и ждем результат (выбранные теги)
     final selectedTags = await fm.Navigator.of(context).push<List<String>>(
       fm.PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => SearchScreen(
           activeTagFilters: _activeTagFilters,
           objectDistances: _objectDistances,
+          preloadedPlacemarks:
+              preloadedObjects, // Передаем предзагруженные объекты
         ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           // Анимация затемнения фона MapScreen
@@ -940,7 +951,7 @@ class _MapScreenState extends fm.State<MapScreen>
 
       // Перемещаем камеру на начальную позицию
       _moveToInitialPosition();
-    } else if (selectedTags != null && selectedTags.isEmpty) {
+    } else if (selectedTags != null) {
       // Если вернулся пустой список, очищаем фильтры
       dev.log('Получен пустой список тегов, очищаем фильтры');
       _mapObjectsManager?.clearFilters();
