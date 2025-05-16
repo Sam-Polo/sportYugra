@@ -593,6 +593,41 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                             ),
                           ],
                         ),
+
+                        fm.Divider(color: fm.Colors.grey.shade300),
+
+                        // Разнообразие оборудования
+                        fm.Row(
+                          crossAxisAlignment: fm.CrossAxisAlignment.start,
+                          children: [
+                            const fm.Icon(fm.Icons.fitness_center,
+                                color: fm.Colors.black),
+                            const fm.SizedBox(width: 16),
+                            fm.Expanded(
+                              child: fm.Column(
+                                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                                children: [
+                                  fm.Text('Разнообразие оборудования',
+                                      style: fm.Theme.of(context)
+                                          .textTheme
+                                          .titleMedium),
+                                  // Индикатор разнообразия
+                                  if (widget.placemark.equipmentDiversity !=
+                                      null)
+                                    _buildDiversityIndicator(
+                                        widget.placemark.equipmentDiversity!)
+                                  else
+                                    const fm.Text(
+                                      'Нет данных о разнообразии оборудования',
+                                      style: fm.TextStyle(
+                                        color: fm.Colors.grey,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
 
@@ -801,6 +836,71 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         );
       }
     }
+  }
+
+  /// Строит индикатор разнообразия оборудования
+  fm.Widget _buildDiversityIndicator(double diversity) {
+    // Процент разнообразия
+    final int percentage = (diversity * 100).round();
+
+    // Определяем цвет индикатора в зависимости от процента
+    fm.Color indicatorColor;
+    if (percentage > 60) {
+      indicatorColor = fm.Colors.green;
+    } else if (percentage >= 30) {
+      indicatorColor = fm.Colors.orange;
+    } else {
+      indicatorColor = fm.Colors.red;
+    }
+
+    return fm.Column(
+      crossAxisAlignment: fm.CrossAxisAlignment.start,
+      children: [
+        fm.SizedBox(height: 4),
+        // Текстовое отображение процента
+        fm.Text(
+          '$percentage%',
+          style: fm.TextStyle(
+            color: indicatorColor,
+            fontWeight: fm.FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        fm.SizedBox(height: 8),
+        // Шкала процента
+        fm.Container(
+          width: double.infinity,
+          height: 8,
+          decoration: fm.BoxDecoration(
+            color: fm.Colors.grey.shade200,
+            borderRadius: fm.BorderRadius.circular(4),
+          ),
+          child: fm.FractionallySizedBox(
+            alignment: fm.Alignment.centerLeft,
+            widthFactor: diversity,
+            child: fm.Container(
+              decoration: fm.BoxDecoration(
+                color: indicatorColor,
+                borderRadius: fm.BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ),
+        // Пояснение
+        fm.SizedBox(height: 4),
+        fm.Text(
+          percentage > 60
+              ? 'Широкий выбор оборудования'
+              : percentage >= 30
+                  ? 'Средний выбор оборудования'
+                  : 'Ограниченный выбор оборудования',
+          style: fm.TextStyle(
+            color: fm.Colors.grey.shade700,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
   }
 }
 

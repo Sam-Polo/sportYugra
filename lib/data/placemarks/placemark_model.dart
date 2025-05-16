@@ -10,6 +10,8 @@ class PlacemarkData {
   List<String>? photoUrls; // URLs фотографий объекта
   String? address; // Адрес объекта
   String? phone; // Телефон объекта
+  double?
+      equipmentDiversity; // Коэффициент разнообразия оборудования (от 0 до 1)
 
   PlacemarkData({
     required this.id,
@@ -20,5 +22,6 @@ class PlacemarkData {
     this.photoUrls,
     this.address,
     this.phone,
+    this.equipmentDiversity,
   });
 }

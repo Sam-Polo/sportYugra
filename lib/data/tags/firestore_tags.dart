@@ -247,4 +247,16 @@ class FirestoreTags {
     _allTagsLoaded = false;
     dev.log('[Теги] Кеш тегов очищен');
   }
+
+  /// Возвращает общее количество тегов в системе
+  int getAllTagsCount() {
+    // Если теги не загружены, вернем 0
+    if (!_allTagsLoaded) {
+      dev.log('[Теги] Предупреждение: Запрос количества тегов до их загрузки');
+      return 0;
+    }
+
+    // Возвращаем общее количество тегов в кеше
+    return _tagsCache.length;
+  }
 }

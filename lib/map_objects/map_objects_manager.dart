@@ -14,12 +14,12 @@ class MapObjectsManager {
 
   // Стиль текста для плейсмарков (вынесен для переиспользования)
   static const TextStyle _placemarkTextStyle = TextStyle(
-    size: 12.0,
-    color: Color.fromARGB(255, 85, 6, 150), // видимый цвет
-    outlineColor: Color.fromARGB(255, 206, 191, 252), // видимый контур
-    outlineWidth: 1.4, // Более толстый контур для лучшей видимости
+    size: 11.0,
+    color: Color.fromARGB(255, 12, 0, 39),
+    outlineColor: Color.fromARGB(255, 206, 191, 252),
+    outlineWidth: 1.2,
     placement: TextStylePlacement.Bottom,
-    offset: 0.0,
+    offset: 4.0,
   );
 
   // Коллекция для плейсмарков

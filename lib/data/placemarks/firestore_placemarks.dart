@@ -135,6 +135,21 @@ class FirestorePlacemarks {
               placemark.tags = tagObjects.map((tag) => tag.id).toList();
               dev.log(
                   'Загружено ${placemark.tags.length} тегов для ${placemark.name}');
+
+              // Расчет разнообразия оборудования
+              if (placemark.tags.isNotEmpty) {
+                // Получаем общее количество тегов в системе
+                final int totalTagsCount = _firestoreTags.getAllTagsCount();
+                // Рассчитываем коэффициент разнообразия - отношение количества тегов объекта к общему числу тегов
+                final double diversity = totalTagsCount > 0
+                    ? placemark.tags.length / totalTagsCount.toDouble()
+                    : 0.0;
+                // Ограничиваем значение в пределах от 0 до 1
+                placemark.equipmentDiversity =
+                    diversity > 1.0 ? 1.0 : diversity;
+                dev.log(
+                    'Коэффициент разнообразия оборудования для ${placemark.name}: ${(placemark.equipmentDiversity! * 100).toStringAsFixed(1)}%');
+              }
             } catch (e) {
               dev.log(
                   'Ошибка при загрузке тегов для объекта ${placemark.id}: $e');
@@ -171,74 +186,5 @@ class FirestorePlacemarks {
       dev.log('Ошибка при получении объектов: $e');
       return [];
     }
-  }
-
-  /// Обновляет объекты дополнительной информацией
-  Future<void> updatePlacemarksWithDetails(
-      List<PlacemarkData> placemarks) async {
-    dev.log('Начинаем обновление объектов дополнительной информацией...');
-
-    // Предварительно загружаем все теги для кэширования
-    await _firestoreTags.loadAllTags();
-
-    for (int i = 0; i < placemarks.length; i++) {
-      final placemark = placemarks[i];
-
-      try {
-        // Загружаем документ объекта
-        final doc =
-            await _firestore.collection('sportobjects').doc(placemark.id).get();
-        if (!doc.exists) continue;
-
-        final data = doc.data()!;
-
-        // Обновляем описание
-        if (data.containsKey('description')) {
-          placemark.description = data['description'] as String?;
-        }
-
-        // Проверяем только "photo-urls", так как именно это поле используется в Firestore
-        if (data.containsKey('photo-urls') && data['photo-urls'] is List) {
-          placemark.photoUrls = List<String>.from(data['photo-urls'] as List);
-          if (placemark.photoUrls!.isNotEmpty) {
-            dev.log(
-                'Обновлено ${placemark.photoUrls!.length} фото для ${placemark.name}');
-          }
-        } else {
-          // Нормальная ситуация, если у объекта нет фотографий
-          placemark.photoUrls = [];
-        }
-
-        // Обновляем адрес
-        if (data.containsKey('address')) {
-          placemark.address = data['address'] as String?;
-        }
-
-        // Обновляем телефон
-        if (data.containsKey('phone')) {
-          placemark.phone = data['phone'] as String?;
-        }
-
-        // Загружаем теги объекта
-        try {
-          final objectTags =
-              await _firestoreTags.loadTagsForObject(placemark.id);
-          if (objectTags.isNotEmpty) {
-            placemark.tags = objectTags.map((tag) => tag.id).toList();
-          }
-        } catch (e) {
-          // Ошибка загрузки тегов
-        }
-      } catch (e) {
-        dev.log('Ошибка при обновлении объекта ${placemark.id}: $e');
-      }
-
-      // Обновляем статус каждые 10 объектов
-      if (i % 10 == 0) {
-        dev.log('Обновлено ${i + 1} из ${placemarks.length} объектов');
-      }
-    }
-
-    dev.log('Обновление объектов завершено');
   }
 }

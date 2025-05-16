@@ -165,7 +165,7 @@ class _MapScreenState extends fm.State<MapScreen>
   bool _locationInitialized = false; // флаг инициализации местоположения
 
   // Порог зума, ниже которого названия меток будут скрыты
-  final double _textVisibilityZoomThreshold = 14.0;
+  final double _textVisibilityZoomThreshold = 13.0;
 
   // Текущее местоположение пользователя
   Point? _userLocation;
@@ -446,6 +446,20 @@ class _MapScreenState extends fm.State<MapScreen>
           placemark.tags = tagObjects.map((tag) => tag.id).toList();
           dev.log(
               'Загружено ${placemark.tags.length} тегов для ${placemark.name}');
+
+          // Расчет разнообразия оборудования
+          if (placemark.tags.isNotEmpty) {
+            // Получаем общее количество тегов в системе
+            final int totalTagsCount = _firestoreTags.getAllTagsCount();
+            // Рассчитываем коэффициент разнообразия - отношение количества тегов объекта к общему числу тегов
+            final double diversity = totalTagsCount > 0
+                ? placemark.tags.length / totalTagsCount.toDouble()
+                : 0.0;
+            // Ограничиваем значение в пределах от 0 до 1
+            placemark.equipmentDiversity = diversity > 1.0 ? 1.0 : diversity;
+            dev.log(
+                'Коэффициент разнообразия оборудования для ${placemark.name}: ${(placemark.equipmentDiversity! * 100).toStringAsFixed(1)}%');
+          }
         } catch (e) {
           dev.log('Ошибка при загрузке тегов для объекта ${placemark.id}: $e');
         }
