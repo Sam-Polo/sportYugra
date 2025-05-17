@@ -122,6 +122,7 @@ app.*.symbols
 .idea/
 .vscode/
 .cursor/
+.cursorignore
 *.iml
 *.iws
 .DS_Store
