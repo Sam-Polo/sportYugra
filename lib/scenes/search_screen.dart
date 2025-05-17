@@ -28,10 +28,15 @@ class SearchScreen extends fm.StatefulWidget {
   fm.State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends fm.State<SearchScreen> {
+class _SearchScreenState extends fm.State<SearchScreen>
+    with fm.TickerProviderStateMixin {
   // Контроллер и FocusNode для управления текстовым полем
   late fm.TextEditingController _searchController;
   late fm.FocusNode _searchFocusNode;
+
+  // Контроллер анимации для блика
+  late fm.AnimationController _blinkController;
+  late fm.Animation<double> _blinkAnimation;
 
   // Флаг для отслеживания, установлен ли фокус
   bool _focusRequested = false;
@@ -67,14 +72,36 @@ class _SearchScreenState extends fm.State<SearchScreen> {
   final fm.Color _checkboxInactiveColor =
       const fm.Color.fromARGB(255, 63, 62, 62); // Цвет для неактивного чекбокса
 
-  // Для анимации подсветки иерархии
-  bool _isHierarchyHighlighted = false;
-
   @override
   void initState() {
     super.initState();
     _searchController = fm.TextEditingController();
     _searchFocusNode = fm.FocusNode();
+
+    // Инициализируем контроллер анимации блика
+    _blinkController = fm.AnimationController(
+      duration: const Duration(
+          milliseconds:
+              1800), // 1800мс = 900мс на нарастание + 900мс на затухание
+      vsync: this,
+    );
+
+    // Создаем анимацию, которая сначала идет до 1.0, а потом обратно до 0.0
+    _blinkAnimation = fm.TweenSequence([
+      fm.TweenSequenceItem(
+        tween: fm.Tween<double>(begin: 0.0, end: 1.0),
+        weight: 50.0,
+      ),
+      fm.TweenSequenceItem(
+        tween: fm.Tween<double>(begin: 1.0, end: 0.0),
+        weight: 50.0,
+      ),
+    ]).animate(
+      fm.CurvedAnimation(
+        parent: _blinkController,
+        curve: fm.Curves.easeInOut,
+      ),
+    );
 
     // Добавляем слушатель для обновления поиска при вводе текста
     _searchController.addListener(_onSearchChanged);
@@ -343,6 +370,7 @@ class _SearchScreenState extends fm.State<SearchScreen> {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
+    _blinkController.dispose();
     super.dispose();
   }
 
@@ -446,27 +474,60 @@ class _SearchScreenState extends fm.State<SearchScreen> {
             child: fm.Container(
               color: fm.Colors.black,
               padding: const fm.EdgeInsets.all(16.0),
-              child: fm.Align(
-                alignment: fm.Alignment.bottomRight,
-                child: fm.ElevatedButton(
-                  onPressed: hasSelectedTags
-                      ? _applyFilters
-                      : null, // Неактивна, если нет выбранных тегов
-                  style: fm.ElevatedButton.styleFrom(
-                    backgroundColor:
-                        hasSelectedTags ? _startColor : fm.Colors.grey,
-                    foregroundColor: fm.Colors.white,
-                    padding: const fm.EdgeInsets.symmetric(
-                        horizontal: 24.0, vertical: 12.0),
-                    // Убеждаемся, что кнопка всегда видима
-                    disabledBackgroundColor: fm.Colors.grey,
-                    disabledForegroundColor: fm.Colors.white70,
+              child: fm.Column(
+                mainAxisSize: fm.MainAxisSize.min,
+                children: [
+                  // Информация о выбранных тегах
+                  if (selectedTagNames.isNotEmpty)
+                    fm.Padding(
+                      padding: const fm.EdgeInsets.only(bottom: 16.0),
+                      child: fm.Row(
+                        crossAxisAlignment: fm.CrossAxisAlignment.start,
+                        children: [
+                          fm.Text(
+                            'Выбраны теги: ',
+                            style: fm.TextStyle(
+                              color: fm.Colors.grey.shade400,
+                              fontSize: 14,
+                            ),
+                          ),
+                          fm.Expanded(
+                            child: fm.Text(
+                              selectedTagNames.join(', '),
+                              style: const fm.TextStyle(
+                                color: fm.Colors.white,
+                                fontSize: 14,
+                                fontWeight: fm.FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  fm.Align(
+                    alignment: fm.Alignment.bottomRight,
+                    child: fm.ElevatedButton(
+                      onPressed: hasSelectedTags
+                          ? _applyFilters
+                          : null, // Неактивна, если нет выбранных тегов
+                      style: fm.ElevatedButton.styleFrom(
+                        backgroundColor:
+                            hasSelectedTags ? _startColor : fm.Colors.grey,
+                        foregroundColor: fm.Colors.white,
+                        padding: const fm.EdgeInsets.symmetric(
+                            horizontal: 24.0, vertical: 12.0),
+                        // Убеждаемся, что кнопка всегда видима
+                        disabledBackgroundColor: fm.Colors.grey,
+                        disabledForegroundColor: fm.Colors.white70,
+                      ),
+                      child: const fm.Text(
+                        'Применить',
+                        style: fm.TextStyle(fontSize: 16.0),
+                      ),
+                    ),
                   ),
-                  child: const fm.Text(
-                    'Применить',
-                    style: fm.TextStyle(fontSize: 16.0),
-                  ),
-                ),
+                ],
               ),
             ),
           ),
@@ -569,25 +630,20 @@ class _SearchScreenState extends fm.State<SearchScreen> {
 
     return fm.InkWell(
       onTap: () {
+        // Скрываем клавиатуру при нажатии на подсказку
+        fm.FocusScope.of(context).unfocus();
+
         setState(() {
           // Скрываем результаты поиска, но не очищаем строку
           _showSearchResults = false;
-
-          // Запускаем анимацию подсветки иерархии
-          _isHierarchyHighlighted = true;
         });
 
         // Находим тег в иерархии и раскрываем его родителей
         _expandParentsOfTag(tag);
 
-        // Сбрасываем подсветку через некоторое время
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) {
-            setState(() {
-              _isHierarchyHighlighted = false;
-            });
-          }
-        });
+        // Запускаем анимацию блика один раз (сбросит себя автоматически)
+        _blinkController.reset();
+        _blinkController.forward();
       },
       child: fm.Padding(
         padding: const fm.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -613,21 +669,23 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                   color: fm.Colors.white,
                   fontSize: 16,
                 ),
-                overflow: fm.TextOverflow.ellipsis,
+                maxLines: 2, // Разрешаем до 2 строк
+                softWrap: true, // Разрешаем перенос
               ),
             ),
 
-            // Родительский тег (если есть) с ограниченной шириной
+            // Родительский тег (если есть)
             if (parentName.isNotEmpty)
               fm.Expanded(
                 flex: 1, // Уменьшаем вес родительского названия
                 child: fm.Text(
                   parentName,
                   style: fm.TextStyle(
-                    color: fm.Colors.grey.shade400,
+                    color: fm.Color.fromARGB(255, 82, 82, 82),
                     fontSize: 14,
                   ),
-                  overflow: fm.TextOverflow.ellipsis,
+                  maxLines: 2, // Разрешаем до 2 строк
+                  softWrap: true, // Разрешаем перенос
                   textAlign: fm.TextAlign.right,
                 ),
               ),
@@ -695,17 +753,18 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                 crossAxisAlignment: fm.CrossAxisAlignment.start,
                 mainAxisSize: fm.MainAxisSize.min,
                 children: [
-                  // Название объекта
+                  // Название объекта - разрешаем перенос строки
                   fm.Text(
                     placemark.name,
                     style: const fm.TextStyle(
                       color: fm.Colors.white,
                       fontSize: 16,
                     ),
-                    overflow: fm.TextOverflow.ellipsis,
+                    maxLines: 2, // Разрешаем до 2 строк
+                    softWrap: true, // Разрешаем перенос
                   ),
 
-                  // Адрес объекта (если есть)
+                  // Адрес объекта (если есть) - разрешаем перенос строки
                   if (address.isNotEmpty)
                     fm.Text(
                       address,
@@ -713,7 +772,8 @@ class _SearchScreenState extends fm.State<SearchScreen> {
                         color: fm.Colors.grey,
                         fontSize: 14,
                       ),
-                      overflow: fm.TextOverflow.ellipsis,
+                      maxLines: 2, // Разрешаем до 2 строк
+                      softWrap: true, // Разрешаем перенос
                     ),
                 ],
               ),
@@ -788,15 +848,22 @@ class _SearchScreenState extends fm.State<SearchScreen> {
               opacity: _showHierarchy ? 1.0 : 0.0,
               duration: const Duration(milliseconds: 900),
               curve: fm.Curves.easeInOut,
-              child: fm.AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: fm.BoxDecoration(
-                  color: _isHierarchyHighlighted
-                      ? fm.Colors.grey.withOpacity(0.15)
-                      : fm.Colors.black,
-                  borderRadius: fm.BorderRadius.circular(8),
-                ),
-                padding: const fm.EdgeInsets.all(8),
+              child: fm.AnimatedBuilder(
+                animation: _blinkAnimation,
+                builder: (context, child) {
+                  return fm.Container(
+                    decoration: fm.BoxDecoration(
+                      color: fm.Color.lerp(
+                        fm.Colors.black,
+                        fm.Colors.grey.withOpacity(0.15),
+                        _blinkAnimation.value,
+                      ),
+                      borderRadius: fm.BorderRadius.circular(8),
+                    ),
+                    padding: const fm.EdgeInsets.all(8),
+                    child: child,
+                  );
+                },
                 child: fm.SingleChildScrollView(
                   child: fm.Column(
                     crossAxisAlignment: fm.CrossAxisAlignment.start,
@@ -806,34 +873,6 @@ class _SearchScreenState extends fm.State<SearchScreen> {
               ),
             ),
           ),
-
-          // Информация о выбранных тегах
-          if (selectedTagNames.isNotEmpty)
-            fm.Padding(
-              padding: const fm.EdgeInsets.only(top: 16.0),
-              child: fm.Row(
-                crossAxisAlignment: fm.CrossAxisAlignment.start,
-                children: [
-                  fm.Text(
-                    'Выбраны теги: ',
-                    style: fm.TextStyle(
-                      color: fm.Colors.grey.shade400,
-                      fontSize: 14,
-                    ),
-                  ),
-                  fm.Expanded(
-                    child: fm.Text(
-                      selectedTagNames.join(', '),
-                      style: fm.TextStyle(
-                        color: fm.Colors.white,
-                        fontSize: 14,
-                        fontWeight: fm.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
     );
