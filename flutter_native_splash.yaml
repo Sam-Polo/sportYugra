@@ -1,15 +1,13 @@
-# flutter_native_splash.yaml:
+# flutter_native_splash.yaml
 flutter_native_splash:
   color: "#ffffff"
-  image: assets/images/start_icon_dumbbell.png
-  branding: assets/images/start_icon_dumbbell.png
+  image: "assets/images/start_icon_dumbbell.png" # Рекомендуется 512x512 или выше
+  branding: "assets/images/start_icon_dumbbell.png" # Отдельное изображение для branding
   android_gravity: center
   ios_content_mode: center
   fullscreen: true
-
   android_12:
-    image: assets/images/start_icon_dumbbell.png
+    image: "assets/images/start_icon_dumbbell.png"
     icon_background_color: "#ffffff"
     branding_mode: bottom
-
-  web: false 
+  web: false
