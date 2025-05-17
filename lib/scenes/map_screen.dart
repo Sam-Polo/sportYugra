@@ -141,7 +141,7 @@ class _MapScreenState extends fm.State<MapScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
-  final bool _enableAutoCameraMove = true;
+  final bool _enableAutoCameraMove = false;
 
   // Флаг для отслеживания первоначальной инициализации
   bool _isInitiallyLoaded = false;
@@ -189,6 +189,13 @@ class _MapScreenState extends fm.State<MapScreen>
   // Флаг показа обучающего всплывающего окна
   bool _isFirstLaunch = false;
   bool _showTutorial = false;
+
+  // Красный цвет для подсветки кнопок и элементов
+  final fm.Color _startColor =
+      const fm.Color(0xFFFC4C4C); // Стандартный красный цвет приложения
+
+  // Флаг для отображения индикатора загрузки деталей объекта
+  bool _isLoadingDetails = false;
 
   @override
   void initState() {
@@ -394,9 +401,19 @@ class _MapScreenState extends fm.State<MapScreen>
         dev.log(
             'У плейсмарка отсутствуют некоторые данные, загружаем детальную информацию');
 
+        // Показываем индикатор загрузки
+        setState(() {
+          _isLoadingDetails = true;
+        });
+
         _loadPlacemarkDetails(placemark).then((_) {
-          // После загрузки деталей показываем модальное окно
-          _showObjectDetailsSheet(placemark, distance);
+          // После загрузки деталей скрываем индикатор и показываем модальное окно
+          if (mounted) {
+            setState(() {
+              _isLoadingDetails = false;
+            });
+            _showObjectDetailsSheet(placemark, distance);
+          }
         });
       } else {
         // Если все данные уже есть, сразу показываем модальное окно
@@ -483,14 +500,17 @@ class _MapScreenState extends fm.State<MapScreen>
 
   /// Показывает модальное окно с деталями объекта
   void _showObjectDetailsSheet(PlacemarkData placemark, double? distance) {
+    // Открываем модальное окно с информацией об объекте
     fm.showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: fm.Colors.transparent,
-      builder: (context) => ObjectDetailsSheet(
-        placemark: placemark,
-        distance: distance, // Передаем расстояние отдельным параметром
-      ),
+      builder: (context) {
+        return ObjectDetailsSheet(
+          placemark: placemark,
+          distance: distance, // Передаем расстояние отдельным параметром
+        );
+      },
     );
   }
 
@@ -735,27 +755,36 @@ class _MapScreenState extends fm.State<MapScreen>
               ),
             ),
           ),
-          // Индикатор загрузки
+          // Индикатор загрузки данных Firestore
           if (_isLoading)
             const fm.Positioned.fill(
               child: fm.Center(
                 child: fm.CircularProgressIndicator(),
               ),
             ),
-          // Кнопка обновления данных
-          if (_showRefreshButton)
-            fm.Positioned(
-              left: 16,
-              bottom: 16,
+          // Индикатор загрузки деталей объекта
+          if (_isLoadingDetails)
+            fm.Positioned.fill(
               child: fm.Container(
-                decoration: fm.BoxDecoration(
-                  color: const fm.Color(0xBF090230),
-                  borderRadius: fm.BorderRadius.circular(8),
-                ),
-                child: fm.IconButton(
-                  icon: const fm.Icon(fm.Icons.refresh, color: fm.Colors.white),
-                  onPressed: _loadPlacemarksFromFirestore,
-                  tooltip: 'Обновить данные',
+                color: fm.Colors.black.withOpacity(0.5),
+                child: fm.Center(
+                  child: fm.Column(
+                    mainAxisSize: fm.MainAxisSize.min,
+                    children: [
+                      fm.CircularProgressIndicator(
+                        valueColor:
+                            fm.AlwaysStoppedAnimation<fm.Color>(_startColor),
+                      ),
+                      const fm.SizedBox(height: 16),
+                      const fm.Text(
+                        'Загрузка информации...',
+                        style: fm.TextStyle(
+                          color: fm.Colors.white,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -817,6 +846,23 @@ class _MapScreenState extends fm.State<MapScreen>
                     'Очистить фильтры',
                     style: fm.TextStyle(fontSize: 16.0),
                   ),
+                ),
+              ),
+            ),
+          // Кнопка обновления данных
+          if (_showRefreshButton)
+            fm.Positioned(
+              left: 16,
+              bottom: 16,
+              child: fm.Container(
+                decoration: fm.BoxDecoration(
+                  color: const fm.Color(0xBF090230),
+                  borderRadius: fm.BorderRadius.circular(8),
+                ),
+                child: fm.IconButton(
+                  icon: const fm.Icon(fm.Icons.refresh, color: fm.Colors.white),
+                  onPressed: _loadPlacemarksFromFirestore,
+                  tooltip: 'Обновить данные',
                 ),
               ),
             ),
