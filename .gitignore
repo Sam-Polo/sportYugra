@@ -121,6 +121,7 @@ app.*.symbols
 # IDE и редакторы
 .idea/
 .vscode/
+.cursor/
 *.iml
 *.iws
 .DS_Store
