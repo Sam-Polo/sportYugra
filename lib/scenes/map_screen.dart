@@ -23,6 +23,7 @@ import '../widgets/object_details_sheet.dart';
 import '../data/tags/firestore_tags.dart';
 import '../data/tags/tag_model.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Виджет поисковой строки, который может работать как кнопка или поле ввода
 class MapSearchBar extends fm.StatelessWidget {
@@ -185,6 +186,10 @@ class _MapScreenState extends fm.State<MapScreen>
   // Для отслеживания изменений видимости текста
   bool _lastTextVisibility = false;
 
+  // Флаг показа обучающего всплывающего окна
+  bool _isFirstLaunch = false;
+  bool _showTutorial = false;
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +205,9 @@ class _MapScreenState extends fm.State<MapScreen>
 
     dev.log('MapKit onStart');
     mapkit.onStart();
+
+    // Проверяем, первый ли это запуск приложения
+    _checkIfFirstLaunch();
   }
 
   @override
@@ -489,53 +497,83 @@ class _MapScreenState extends fm.State<MapScreen>
   /// Загружает плейсмарки из Firestore
   Future<void> _loadPlacemarksFromFirestore() async {
     if (_mapWindow != null) {
-      if (_placemarksLoaded) {
-        return;
-      }
-
-      try {
+      if (mounted) {
         setState(() {
           _isLoading = true;
         });
+      }
 
-        // Загружаем базовую информацию в первую очередь
-        final placemarks = await _firestorePlacemarks.getSportObjectsBasic();
-        dev.log(
-            'Загружено ${placemarks.length} объектов с базовой информацией');
-
+      try {
         // Создаем менеджер объектов карты
         _mapObjectsManager = MapObjectsManager(
           _mapWindow!,
           onMapObjectTap: _onMapObjectTapped,
         );
 
-        // Добавляем объекты на карту сразу с базовой информацией
-        _mapObjectsManager?.addPlacemarks(placemarks);
+        // Загружаем плейсмарки из Firestore (базовая информация)
+        await _loadPlacemarks();
 
-        // После добавления объектов принудительно обновляем зум,
-        // чтобы убедиться, что названия отображаются корректно
-        _updateCameraForNameVisibility();
+        // Отмечаем, что плейсмарки загружены
+        _placemarksLoaded = true;
 
-        // Загружаем детальную информацию в фоне
-        _loadDetailedInfoInBackground();
+        // Обновляем расстояния до всех объектов
+        _updateAllDistances();
 
-        setState(() {
-          _isLoading = false;
-          _placemarksLoaded = true;
+        // Попытка переместить камеру после загрузки и получения местоположения
+        _tryMoveCameraAfterLoadAndLocation();
+
+        dev.log('Базовые плейсмарки загружены');
+
+        // Запускаем загрузку детальной информации в фоновом режиме
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _loadDetailedInfoInBackground();
+          }
         });
       } catch (e) {
-        dev.log('Ошибка при загрузке объектов: $e');
-        // Показываем снекбар с ошибкой
+        dev.log('Ошибка при загрузке плейсмарков: $e');
+      } finally {
         if (mounted) {
-          fm.ScaffoldMessenger.of(context).showSnackBar(
-            fm.SnackBar(
-                content: fm.Text('Ошибка загрузки объектов: ${e.toString()}')),
-          );
+          setState(() {
+            _isLoading = false;
+            _isInitiallyLoaded = true;
+          });
         }
+      }
+    }
+  }
+
+  /// Загружает плейсмарки
+  Future<void> _loadPlacemarks() async {
+    dev.log('Загружаем плейсмарки...');
+
+    // Сначала загружаем только базовую информацию (координаты и названия)
+    try {
+      final placemarks = await _firestorePlacemarks.getSportObjectsBasic();
+
+      dev.log('Загружено ${placemarks.length} плейсмарков');
+
+      if (mounted) {
         setState(() {
-          _isLoading = false;
+          // Добавляем плейсмарки на карту
+          _mapObjectsManager?.addPlacemarks(placemarks);
+
+          // Если это первый запуск, показываем обучающее окно после небольшой задержки
+          if (_isFirstLaunch) {
+            // Отложенный показ обучающего окна, чтобы дать время загрузить UI
+            Future.delayed(const Duration(milliseconds: 1000), () {
+              if (mounted) {
+                _showTutorialBottomSheet(context);
+              }
+            });
+          }
         });
       }
+
+      // Загружаем дополнительную информацию в фоновом режиме
+      _loadDetailedInfoInBackground();
+    } catch (e) {
+      dev.log('Ошибка при загрузке плейсмарков: $e');
     }
   }
 
@@ -985,5 +1023,168 @@ class _MapScreenState extends fm.State<MapScreen>
   /// Получает расстояние до объекта по его ID
   double? getDistanceToObject(String objectId) {
     return _objectDistances[objectId];
+  }
+
+  /// Проверяет, является ли это первым запуском приложения
+  Future<void> _checkIfFirstLaunch() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstLaunch =
+        prefs.getBool('isFirstLaunch') ?? true; // По умолчанию первый запуск
+
+    if (isFirstLaunch) {
+      // Если это первый запуск, сохраняем флаг
+      setState(() {
+        _isFirstLaunch = true;
+      });
+
+      // Сохраняем в настройках, что это уже не первый запуск
+      await prefs.setBool('isFirstLaunch', false);
+    }
+  }
+
+  /// Показывает обучающее окно в виде всплывающего BottomSheet с drag handle
+  void _showTutorialBottomSheet(fm.BuildContext context) {
+    fm.showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: fm.Colors.transparent,
+      builder: (context) => fm.Container(
+        decoration: fm.BoxDecoration(
+          color: fm.Colors.white,
+          borderRadius: const fm.BorderRadius.only(
+            topLeft: fm.Radius.circular(16),
+            topRight: fm.Radius.circular(16),
+          ),
+        ),
+        padding: const fm.EdgeInsets.only(top: 8),
+        child: fm.Column(
+          mainAxisSize: fm.MainAxisSize.min,
+          children: [
+            // Drag handle
+            fm.Container(
+              width: 40,
+              height: 4,
+              decoration: fm.BoxDecoration(
+                color: fm.Colors.grey.shade300,
+                borderRadius: fm.BorderRadius.circular(2),
+              ),
+            ),
+            fm.Padding(
+              padding: const fm.EdgeInsets.all(16),
+              child: fm.Column(
+                mainAxisSize: fm.MainAxisSize.min,
+                crossAxisAlignment: fm.CrossAxisAlignment.start,
+                children: [
+                  fm.Row(
+                    mainAxisAlignment: fm.MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Заголовок
+                      const fm.Text(
+                        'Привет! 👋',
+                        style: fm.TextStyle(
+                          color: fm.Colors.black,
+                          fontSize: 18,
+                          fontWeight: fm.FontWeight.bold,
+                        ),
+                      ),
+
+                      // Кнопка закрытия
+                      fm.IconButton(
+                        icon: const fm.Icon(fm.Icons.close,
+                            color: fm.Colors.black54),
+                        padding: fm.EdgeInsets.zero,
+                        constraints: const fm.BoxConstraints(),
+                        onPressed: () {
+                          fm.Navigator.of(context).pop();
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const fm.SizedBox(height: 12),
+
+                  // Основной текст подсказки
+                  const fm.Text(
+                    'Это приложение поможет найти спортивные объекты в Ханты-Мансийске:',
+                    style: fm.TextStyle(
+                      color: fm.Colors.black,
+                      fontSize: 14,
+                    ),
+                  ),
+
+                  const fm.SizedBox(height: 12),
+
+                  // Пункты с информацией
+                  _buildTutorialPoint(
+                    icon: fm.Icons.place,
+                    text:
+                        'Нажми на метку, чтобы узнать подробности о спортивном объекте',
+                  ),
+
+                  _buildTutorialPoint(
+                    icon: fm.Icons.search,
+                    text:
+                        'Используй поиск вверху для быстрого нахождения объектов по названию',
+                  ),
+
+                  _buildTutorialPoint(
+                    icon: fm.Icons.filter_list,
+                    text:
+                        'Применяй фильтры по типам оборудования через поисковую строку',
+                  ),
+
+                  const fm.SizedBox(height: 16),
+
+                  // Кнопка понятно
+                  fm.Align(
+                    alignment: fm.Alignment.centerRight,
+                    child: fm.ElevatedButton(
+                      style: fm.ElevatedButton.styleFrom(
+                        backgroundColor: const fm.Color(0xFFFC4C4C),
+                        foregroundColor: fm.Colors.white,
+                        padding: const fm.EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 8),
+                      ),
+                      onPressed: () {
+                        fm.Navigator.of(context).pop();
+                      },
+                      child: const fm.Text('Понятно!'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Создает пункт подсказки с иконкой
+  fm.Widget _buildTutorialPoint(
+      {required fm.IconData icon, required String text}) {
+    return fm.Padding(
+      padding: const fm.EdgeInsets.only(bottom: 8),
+      child: fm.Row(
+        crossAxisAlignment: fm.CrossAxisAlignment.start,
+        children: [
+          fm.Icon(
+            icon,
+            color: const fm.Color(0xFFFC4C4C),
+            size: 18,
+          ),
+          const fm.SizedBox(width: 8),
+          fm.Expanded(
+            child: fm.Text(
+              text,
+              style: const fm.TextStyle(
+                color: fm.Colors.black87,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
