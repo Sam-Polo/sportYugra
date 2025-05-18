@@ -146,6 +146,9 @@ class _MapScreenState extends fm.State<MapScreen>
   // Флаг для отслеживания первоначальной инициализации
   bool _isInitiallyLoaded = false;
 
+  // Кэш для хранения полной информации о плейсмарках
+  final Map<String, PlacemarkData> _placemarkDetailsCache = {};
+
   MapWindow? _mapWindow;
   String? _mapStyle;
   UserLocationLayer? _userLocationLayer;
@@ -194,7 +197,7 @@ class _MapScreenState extends fm.State<MapScreen>
   final fm.Color _startColor =
       const fm.Color(0xFFFC4C4C); // Стандартный красный цвет приложения
 
-  // Флаг для отображения индикатора загрузки деталей объекта
+  /// Добавляем поле состояния для отслеживания загрузки деталей объекта
   bool _isLoadingDetails = false;
 
   @override
@@ -393,6 +396,22 @@ class _MapScreenState extends fm.State<MapScreen>
       // Получаем расстояние до объекта из словаря
       final distance = _objectDistances[placemarkId];
 
+      // Проверяем наличие данных в кэше
+      if (_placemarkDetailsCache.containsKey(placemark.id)) {
+        // Используем данные из кэша для обновления текущего плейсмарка
+        final cachedData = _placemarkDetailsCache[placemark.id]!;
+        placemark.address = cachedData.address;
+        placemark.phone = cachedData.phone;
+        placemark.description = cachedData.description;
+        placemark.photoUrls = cachedData.photoUrls;
+        placemark.tags = cachedData.tags;
+        placemark.equipmentDiversity = cachedData.equipmentDiversity;
+
+        // Показываем модальное окно с деталями объекта
+        _showObjectDetailsSheet(placemark, distance);
+        return;
+      }
+
       // Проверяем, есть ли у плейсмарка адрес и телефон, которые нужны на детальной странице
       if ((placemark.address == null || placemark.address!.isEmpty) ||
           placemark.phone == null ||
@@ -401,17 +420,27 @@ class _MapScreenState extends fm.State<MapScreen>
         dev.log(
             'У плейсмарка отсутствуют некоторые данные, загружаем детальную информацию');
 
-        // Показываем индикатор загрузки
+        // Показываем снекбар с информацией о загрузке
         setState(() {
           _isLoadingDetails = true;
         });
 
+        _showLoadingSnackbar(placemark.name);
+
+        // Загружаем детали
         _loadPlacemarkDetails(placemark).then((_) {
-          // После загрузки деталей скрываем индикатор и показываем модальное окно
+          // Кэшируем данные после загрузки
+          _placemarkDetailsCache[placemark.id] = placemark;
+
+          // Скрываем снекбар
           if (mounted) {
             setState(() {
               _isLoadingDetails = false;
             });
+            // Скрываем снекбар
+            fm.ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+            // После загрузки деталей показываем модальное окно
             _showObjectDetailsSheet(placemark, distance);
           }
         });
@@ -420,6 +449,34 @@ class _MapScreenState extends fm.State<MapScreen>
         _showObjectDetailsSheet(placemark, distance);
       }
     }
+  }
+
+  /// Показывает снекбар с индикатором загрузки
+  void _showLoadingSnackbar(String placeName) {
+    fm.ScaffoldMessenger.of(context).showSnackBar(
+      fm.SnackBar(
+        content: fm.Row(
+          children: [
+            fm.SizedBox(
+              width: 20,
+              height: 20,
+              child: fm.CircularProgressIndicator(
+                strokeWidth: 2.0,
+                valueColor:
+                    fm.AlwaysStoppedAnimation<fm.Color>(fm.Colors.white),
+              ),
+            ),
+            fm.SizedBox(width: 16),
+            fm.Expanded(
+              child: fm.Text('Загрузка данных: $placeName'),
+            ),
+          ],
+        ),
+        duration: Duration(
+            seconds: 30), // Долгое время - будет закрыто вручную при загрузке
+        backgroundColor: fm.Colors.blue.shade700,
+      ),
+    );
   }
 
   /// Загружает детальную информацию для конкретного плейсмарка
@@ -544,10 +601,14 @@ class _MapScreenState extends fm.State<MapScreen>
 
         dev.log('Базовые плейсмарки загружены');
 
-        // Запускаем загрузку детальной информации в фоновом режиме
+        // Запускаем загрузку детальной информации в фоновом режиме с небольшой задержкой
+        // для разгрузки UI потока
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) {
-            _loadDetailedInfoInBackground();
+            _loadDetailedInfoInBackground().then((_) {
+              // Обновление маркеров на карте с информацией из кеша
+              _updatePlacemarksWithCachedData();
+            });
           }
         });
       } catch (e) {
@@ -561,6 +622,33 @@ class _MapScreenState extends fm.State<MapScreen>
         }
       }
     }
+  }
+
+  /// Обновляет данные всех плейсмарков на карте из кеша
+  void _updatePlacemarksWithCachedData() {
+    if (_mapObjectsManager == null) return;
+
+    _mapObjectsManager!.forEachPlacemark((placemarkObject, placemarkId) {
+      final userData = placemarkObject.userData;
+      if (userData != null && userData is PlacemarkData) {
+        final objectId = userData.id;
+
+        // Если данные есть в кеше, обновляем объект на карте
+        if (_placemarkDetailsCache.containsKey(objectId)) {
+          final cachedData = _placemarkDetailsCache[objectId]!;
+
+          // Обновляем данные непосредственно в объекте на карте
+          userData.address = cachedData.address;
+          userData.phone = cachedData.phone;
+          userData.description = cachedData.description;
+          userData.photoUrls = cachedData.photoUrls;
+          userData.tags = cachedData.tags;
+          userData.equipmentDiversity = cachedData.equipmentDiversity;
+        }
+      }
+    });
+
+    dev.log('Обновлены данные плейсмарков на карте из кеша');
   }
 
   /// Загружает плейсмарки
@@ -589,9 +677,6 @@ class _MapScreenState extends fm.State<MapScreen>
           }
         });
       }
-
-      // Загружаем дополнительную информацию в фоновом режиме
-      _loadDetailedInfoInBackground();
     } catch (e) {
       dev.log('Ошибка при загрузке плейсмарков: $e');
     }
@@ -644,6 +729,11 @@ class _MapScreenState extends fm.State<MapScreen>
       dev.log(
           'Получена полная информация об объектах: ${detailedPlacemarks.length}');
 
+      // Обновляем кэш информации о плейсмарках
+      for (final placemark in detailedPlacemarks) {
+        _placemarkDetailsCache[placemark.id] = placemark;
+      }
+
       // Устанавливаем фильтры тегов, если они есть
       if (_activeTagFilters.isNotEmpty) {
         _mapObjectsManager?.setTagFilters(_activeTagFilters);
@@ -660,8 +750,10 @@ class _MapScreenState extends fm.State<MapScreen>
       _updateCameraForNameVisibility();
 
       dev.log('Завершена загрузка детальной информации об объектах');
+      return;
     } catch (e) {
       dev.log('Ошибка при загрузке детальной информации: $e');
+      return;
     }
   }
 
@@ -762,29 +854,14 @@ class _MapScreenState extends fm.State<MapScreen>
                 child: fm.CircularProgressIndicator(),
               ),
             ),
-          // Индикатор загрузки деталей объекта
+          // Полупрозрачный оверлей при загрузке деталей объекта
           if (_isLoadingDetails)
             fm.Positioned.fill(
               child: fm.Container(
-                color: fm.Colors.black.withOpacity(0.5),
-                child: fm.Center(
-                  child: fm.Column(
-                    mainAxisSize: fm.MainAxisSize.min,
-                    children: [
-                      fm.CircularProgressIndicator(
-                        valueColor:
-                            fm.AlwaysStoppedAnimation<fm.Color>(_startColor),
-                      ),
-                      const fm.SizedBox(height: 16),
-                      const fm.Text(
-                        'Загрузка информации...',
-                        style: fm.TextStyle(
-                          color: fm.Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                color: fm.Colors.black.withOpacity(0.3),
+                child: const fm.Center(
+                  child: fm
+                      .SizedBox(), // Пустой контейнер, так как у нас уже есть снекбар
                 ),
               ),
             ),
