@@ -1,0 +1,9 @@
+[33mcommit 4151dd426ed8447c9b636b953eacc66b849f6027[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mloading-object-animation[m[33m)[m
+Author: Semyon Polovodov <s4ns4l4ssn4ss@mail.ru>
+Date:   Sun May 18 21:28:17 2025 +0500
+
+    replace pulsing animation with loading snackbar and overlay
+
+ lib/map_objects/map_objects_manager.dart |   1 [32m+[m
+ lib/scenes/map_screen.dart               | 133 [32m++++++++++++++++++++++++[m[31m-------[m
+ 2 files changed, 106 insertions(+), 28 deletions(-)

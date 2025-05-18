@@ -420,25 +420,21 @@ class _MapScreenState extends fm.State<MapScreen>
         dev.log(
             'У плейсмарка отсутствуют некоторые данные, загружаем детальную информацию');
 
-        // Показываем снекбар с информацией о загрузке
+        // Показываем индикатор загрузки
         setState(() {
           _isLoadingDetails = true;
         });
-
-        _showLoadingSnackbar(placemark.name);
 
         // Загружаем детали
         _loadPlacemarkDetails(placemark).then((_) {
           // Кэшируем данные после загрузки
           _placemarkDetailsCache[placemark.id] = placemark;
 
-          // Скрываем снекбар
+          // Скрываем индикатор загрузки
           if (mounted) {
             setState(() {
               _isLoadingDetails = false;
             });
-            // Скрываем снекбар
-            fm.ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
             // После загрузки деталей показываем модальное окно
             _showObjectDetailsSheet(placemark, distance);
@@ -449,34 +445,6 @@ class _MapScreenState extends fm.State<MapScreen>
         _showObjectDetailsSheet(placemark, distance);
       }
     }
-  }
-
-  /// Показывает снекбар с индикатором загрузки
-  void _showLoadingSnackbar(String placeName) {
-    fm.ScaffoldMessenger.of(context).showSnackBar(
-      fm.SnackBar(
-        content: fm.Row(
-          children: [
-            fm.SizedBox(
-              width: 20,
-              height: 20,
-              child: fm.CircularProgressIndicator(
-                strokeWidth: 2.0,
-                valueColor:
-                    fm.AlwaysStoppedAnimation<fm.Color>(fm.Colors.white),
-              ),
-            ),
-            fm.SizedBox(width: 16),
-            fm.Expanded(
-              child: fm.Text('Загрузка данных: $placeName'),
-            ),
-          ],
-        ),
-        duration: Duration(
-            seconds: 30), // Долгое время - будет закрыто вручную при загрузке
-        backgroundColor: fm.Colors.blue.shade700,
-      ),
-    );
   }
 
   /// Загружает детальную информацию для конкретного плейсмарка
@@ -854,14 +822,30 @@ class _MapScreenState extends fm.State<MapScreen>
                 child: fm.CircularProgressIndicator(),
               ),
             ),
-          // Полупрозрачный оверлей при загрузке деталей объекта
+          // Индикатор загрузки деталей объекта
           if (_isLoadingDetails)
             fm.Positioned.fill(
               child: fm.Container(
-                color: fm.Colors.black.withOpacity(0.3),
-                child: const fm.Center(
-                  child: fm
-                      .SizedBox(), // Пустой контейнер, так как у нас уже есть снекбар
+                color: fm.Colors.black.withOpacity(0.5),
+                child: fm.Center(
+                  child: fm.Column(
+                    mainAxisSize: fm.MainAxisSize.min,
+                    children: [
+                      fm.CircularProgressIndicator(
+                        valueColor:
+                            fm.AlwaysStoppedAnimation<fm.Color>(_startColor),
+                      ),
+                      const fm.SizedBox(height: 16),
+                      fm.Text(
+                        'Загрузка данных...',
+                        style: fm.TextStyle(
+                          color: fm.Colors.white,
+                          fontSize: 16,
+                          fontWeight: fm.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
