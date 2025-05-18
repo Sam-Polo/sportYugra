@@ -77,97 +77,25 @@ class FirestorePlacemarks {
       }
 
       int objectsProcessed = 0;
+      final List<Future> loadTasks = [];
 
-      // Для каждого объекта загружаем полную информацию
+      // Для каждого объекта создаем задачу загрузки полной информации
       for (final placemark in placemarks) {
-        try {
-          // Получаем документ объекта
-          final doc = await _firestore
-              .collection('sportobjects')
-              .doc(placemark.id)
-              .get();
-
-          if (!doc.exists) {
-            dev.log('Документ для объекта ${placemark.id} не найден');
-            continue;
-          }
-
-          final data = doc.data() ?? {};
-
-          // Добавляем описание
-          if (data.containsKey('description')) {
-            placemark.description = data['description'] as String?;
-            dev.log('Загружено описание для ${placemark.name}');
-          }
-
-          // Добавляем адрес
-          if (data.containsKey('address')) {
-            placemark.address = data['address'] as String?;
-            dev.log(
-                'Загружен адрес для ${placemark.name}: ${placemark.address}');
-          }
-
-          // Добавляем телефон
-          if (data.containsKey('phone')) {
-            placemark.phone = data['phone'] as String?;
-            dev.log(
-                'Загружен телефон для ${placemark.name}: ${placemark.phone}');
-          }
-
-          // Проверяем наличие фотографий
-          if (data.containsKey('photo-urls') && data['photo-urls'] is List) {
-            placemark.photoUrls = List<String>.from(data['photo-urls'] as List);
-            if (placemark.photoUrls!.isNotEmpty) {
+        loadTasks.add(
+          _loadFullObjectInfo(placemark).then((_) {
+            // Обновляем счетчик обработанных объектов
+            objectsProcessed++;
+            if (objectsProcessed % 5 == 0 ||
+                objectsProcessed == placemarks.length) {
               dev.log(
-                  'Загружено ${placemark.photoUrls!.length} фото для ${placemark.name}');
+                  'Загружена информация для $objectsProcessed объектов из ${placemarks.length}');
             }
-          } else {
-            // Нормальная ситуация, если у объекта нет фотографий
-            placemark.photoUrls = [];
-          }
-
-          // Загружаем теги для объекта
-          if (data.containsKey('tags') && data['tags'] is List) {
-            try {
-              final List<TagData> tagObjects =
-                  await _firestoreTags.loadTagsForObject(placemark.id);
-              // Преобразуем список объектов TagData в список идентификаторов String
-              placemark.tags = tagObjects.map((tag) => tag.id).toList();
-              dev.log(
-                  'Загружено ${placemark.tags.length} тегов для ${placemark.name}');
-
-              // Расчет разнообразия оборудования
-              if (placemark.tags.isNotEmpty) {
-                // Получаем общее количество тегов в системе
-                final int totalTagsCount = _firestoreTags.getAllTagsCount();
-                // Рассчитываем коэффициент разнообразия - отношение количества тегов объекта к общему числу тегов
-                final double diversity = totalTagsCount > 0
-                    ? placemark.tags.length / totalTagsCount.toDouble()
-                    : 0.0;
-                // Ограничиваем значение в пределах от 0 до 1
-                placemark.equipmentDiversity =
-                    diversity > 1.0 ? 1.0 : diversity;
-                dev.log(
-                    'Коэффициент разнообразия оборудования для ${placemark.name}: ${(placemark.equipmentDiversity! * 100).toStringAsFixed(1)}%');
-              }
-            } catch (e) {
-              dev.log(
-                  'Ошибка при загрузке тегов для объекта ${placemark.id}: $e');
-            }
-          }
-
-          // Обновляем счетчик обработанных объектов
-          objectsProcessed++;
-          if (objectsProcessed % 5 == 0 ||
-              objectsProcessed == placemarks.length) {
-            dev.log(
-                'Загружена информация для $objectsProcessed объектов из ${placemarks.length}');
-          }
-        } catch (e) {
-          dev.log(
-              'Ошибка при загрузке полной информации для объекта ${placemark.id}: $e');
-        }
+          }),
+        );
       }
+
+      // Ожидаем завершения всех задач загрузки
+      await Future.wait(loadTasks);
 
       // Выводим сводку о загруженных данных
       int objectsWithAddress = placemarks
@@ -185,6 +113,83 @@ class FirestorePlacemarks {
     } catch (e) {
       dev.log('Ошибка при получении объектов: $e');
       return [];
+    }
+  }
+
+  /// Загружает полную информацию для одного объекта
+  Future<void> _loadFullObjectInfo(PlacemarkData placemark) async {
+    try {
+      // Получаем документ объекта
+      final doc =
+          await _firestore.collection('sportobjects').doc(placemark.id).get();
+
+      if (!doc.exists) {
+        dev.log('Документ для объекта ${placemark.id} не найден');
+        return;
+      }
+
+      final data = doc.data() ?? {};
+
+      // Добавляем описание
+      if (data.containsKey('description')) {
+        placemark.description = data['description'] as String?;
+        dev.log('Загружено описание для ${placemark.name}');
+      }
+
+      // Добавляем адрес
+      if (data.containsKey('address')) {
+        placemark.address = data['address'] as String?;
+        dev.log('Загружен адрес для ${placemark.name}: ${placemark.address}');
+      }
+
+      // Добавляем телефон
+      if (data.containsKey('phone')) {
+        placemark.phone = data['phone'] as String?;
+        dev.log('Загружен телефон для ${placemark.name}: ${placemark.phone}');
+      }
+
+      // Проверяем наличие фотографий
+      if (data.containsKey('photo-urls') && data['photo-urls'] is List) {
+        placemark.photoUrls = List<String>.from(data['photo-urls'] as List);
+        if (placemark.photoUrls!.isNotEmpty) {
+          dev.log(
+              'Загружено ${placemark.photoUrls!.length} фото для ${placemark.name}');
+        }
+      } else {
+        // Нормальная ситуация, если у объекта нет фотографий
+        placemark.photoUrls = [];
+      }
+
+      // Загружаем теги для объекта
+      if (data.containsKey('tags') && data['tags'] is List) {
+        try {
+          final List<TagData> tagObjects =
+              await _firestoreTags.loadTagsForObject(placemark.id);
+          // Преобразуем список объектов TagData в список идентификаторов String
+          placemark.tags = tagObjects.map((tag) => tag.id).toList();
+          dev.log(
+              'Загружено ${placemark.tags.length} тегов для ${placemark.name}');
+
+          // Расчет разнообразия оборудования
+          if (placemark.tags.isNotEmpty) {
+            // Получаем общее количество тегов в системе
+            final int totalTagsCount = _firestoreTags.getAllTagsCount();
+            // Рассчитываем коэффициент разнообразия - отношение количества тегов объекта к общему числу тегов
+            final double diversity = totalTagsCount > 0
+                ? placemark.tags.length / totalTagsCount.toDouble()
+                : 0.0;
+            // Ограничиваем значение в пределах от 0 до 1
+            placemark.equipmentDiversity = diversity > 1.0 ? 1.0 : diversity;
+            dev.log(
+                'Коэффициент разнообразия оборудования для ${placemark.name}: ${(placemark.equipmentDiversity! * 100).toStringAsFixed(1)}%');
+          }
+        } catch (e) {
+          dev.log('Ошибка при загрузке тегов для объекта ${placemark.id}: $e');
+        }
+      }
+    } catch (e) {
+      dev.log(
+          'Ошибка при загрузке полной информации для объекта ${placemark.id}: $e');
     }
   }
 }
