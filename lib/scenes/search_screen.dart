@@ -269,7 +269,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
   }
 
   /// Рекурсивно выводит информацию об иерархии тегов для отладки
-  void _logTagsHierarchy(List<TagData> tags, [int level = 0]) {
+  void _logTagsHierarchy(List<TagData> tags) {
     // Метод оставлен, но без содержимого - чтобы не выводить подробную информацию о тегах
   }
 
@@ -700,7 +700,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
                   checkboxTheme: fm.CheckboxThemeData(
                     fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
                       (states) {
-                        if (states.contains(fm.MaterialState.selected)) {
+                        if (states.contains(fm.WidgetState.selected)) {
                           return _startColor;
                         }
                         return const fm.Color.fromARGB(255, 63, 62,
@@ -983,7 +983,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
                     checkboxTheme: fm.CheckboxThemeData(
                       fillColor: fm.MaterialStateProperty.resolveWith<fm.Color>(
                         (states) {
-                          if (states.contains(fm.MaterialState.selected)) {
+                          if (states.contains(fm.WidgetState.selected)) {
                             return textColor; // Выбранный цвет фона чекбокса
                           }
                           return _checkboxInactiveColor; // Цвет для неактивного чекбокса

@@ -191,7 +191,7 @@ class _MapScreenState extends fm.State<MapScreen>
 
   // Флаг показа обучающего всплывающего окна
   bool _isFirstLaunch = false;
-  bool _showTutorial = false;
+  final bool _showTutorial = false;
 
   // Красный цвет для подсветки кнопок и элементов
   final fm.Color _startColor =
