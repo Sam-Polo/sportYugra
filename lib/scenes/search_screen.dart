@@ -16,12 +16,14 @@ class SearchScreen extends fm.StatefulWidget {
   final HashMap<String, double> objectDistances;
   // Добавляем новый параметр для передачи уже загруженных объектов
   final List<PlacemarkData>? preloadedPlacemarks;
+  final bool autoFocus;
 
   const SearchScreen({
     super.key,
     this.activeTagFilters = const [],
     required this.objectDistances,
     this.preloadedPlacemarks,
+    this.autoFocus = true,
   });
 
   @override
@@ -108,7 +110,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
 
     // задержка фокус поиска (равна длительности анимации перехода)
     fm.WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_focusRequested) {
+      if (mounted && !_focusRequested && widget.autoFocus) {
         _focusRequested = true;
         Future.delayed(const Duration(milliseconds: 700), () {
           if (mounted) {
@@ -407,6 +409,16 @@ class _SearchScreenState extends fm.State<SearchScreen>
                   child: fm.Column(
                     mainAxisSize: fm.MainAxisSize.min,
                     children: [
+                      // Кнопка возврата
+                      fm.Align(
+                        alignment: fm.Alignment.centerLeft,
+                        child: fm.IconButton(
+                          icon: const fm.Icon(fm.Icons.arrow_back,
+                              color: fm.Colors.white),
+                          onPressed: () => fm.Navigator.of(context).pop(),
+                          tooltip: 'Назад',
+                        ),
+                      ),
                       // Поисковая строка с Hero анимацией
                       fm.Hero(
                         tag: 'searchBarHero',

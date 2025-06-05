@@ -132,6 +132,7 @@ app.*.symbols
 *.env.*
 google-services.json
 GoogleService-Info.plist
+docs-funcs.dart
 
 # Сгенерированные файлы
 *.g.dart

@@ -890,10 +890,10 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         fm.SizedBox(height: 4),
         fm.Text(
           percentage > 60
-              ? 'Широкий выбор оборудования'
+              ? 'Широкий уровень'
               : percentage >= 30
-                  ? 'Средний выбор оборудования'
-                  : 'Ограниченный выбор оборудования',
+                  ? 'Средний уровень'
+                  : 'Ограниченный уровень',
           style: fm.TextStyle(
             color: fm.Colors.grey.shade700,
             fontSize: 12,
