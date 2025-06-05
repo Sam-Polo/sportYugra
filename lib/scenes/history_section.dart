@@ -247,12 +247,6 @@ class _HistorySectionState extends fm.State<HistorySection> {
                 fm.Row(
                   mainAxisSize: fm.MainAxisSize.min,
                   children: [
-                    fm.Icon(
-                      fm.Icons.person,
-                      color: fm.Colors.white70,
-                      size: 16,
-                    ),
-                    fm.SizedBox(width: 8),
                     fm.Text(
                       change.userEmail.length > 20
                           ? '${change.userEmail.substring(0, 18)}...'
@@ -262,6 +256,12 @@ class _HistorySectionState extends fm.State<HistorySection> {
                         fontSize: 13,
                         fontWeight: fm.FontWeight.w500,
                       ),
+                    ),
+                    fm.SizedBox(width: 8),
+                    fm.Icon(
+                      fm.Icons.person,
+                      color: fm.Colors.white70,
+                      size: 16,
                     ),
                   ],
                 ),
