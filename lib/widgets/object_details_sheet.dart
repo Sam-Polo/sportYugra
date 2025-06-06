@@ -26,6 +26,13 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   final fm.PageController _photoPageController = fm.PageController();
   int _currentPhotoIndex = 0;
 
+  // Цветовая схема в стиле приложения
+  final fm.Color _darkBlue = const fm.Color(0xFF0A1A2F);
+  final fm.Color _accentColor = const fm.Color(0xFFFC4C4C);
+  final fm.Color _textColor = fm.Colors.white;
+  final fm.Color _textColorSecondary = fm.Colors.white70;
+  final fm.Color _textColorTertiary = fm.Colors.white54;
+
   // Список обработчиков предзагрузки изображений для возможности отмены
   final List<fm.ImageStreamListener> _imagePrecacheHandlers = [];
 
@@ -188,14 +195,17 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
   /// Строит вкладку с тегами
   fm.Widget _buildTagsTab() {
     if (_tagsLoading) {
-      return const fm.Center(
-        child: fm.CircularProgressIndicator(),
+      return fm.Center(
+        child: fm.CircularProgressIndicator(
+          valueColor: fm.AlwaysStoppedAnimation<fm.Color>(_accentColor),
+        ),
       );
     }
 
     if (_objectTags.isEmpty) {
-      return const fm.Center(
-        child: fm.Text('Теги не найдены'),
+      return fm.Center(
+        child: fm.Text('Теги не найдены',
+            style: fm.TextStyle(color: _textColorSecondary)),
       );
     }
 
@@ -205,11 +215,12 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         crossAxisAlignment: fm.CrossAxisAlignment.start,
         children: [
           // Заголовок иерархии тегов
-          const fm.Text(
+          fm.Text(
             'Теги объекта:',
             style: fm.TextStyle(
               fontSize: 18,
               fontWeight: fm.FontWeight.bold,
+              color: _textColor,
             ),
           ),
           const fm.SizedBox(height: 16),
@@ -313,7 +324,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       if (level == 0 &&
           (tag.name.toLowerCase().contains('тренажерный зал') ||
               tag.id.toLowerCase() == 'gymid')) {
-        return fm.Colors.indigo;
+        return _accentColor;
       }
 
       // Светло-бирюзовый для родительских тегов
@@ -322,7 +333,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       }
 
       // Серый для обычных тегов
-      return fm.Colors.grey;
+      return _textColorSecondary;
     }
 
     return fm.Padding(
@@ -358,8 +369,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                               ? fm.FontWeight.bold
                               : fm.FontWeight.normal,
                           color: level == 0
-                              ? fm.Colors.blue.shade700
-                              : fm.Colors.black87,
+                              ? _textColor
+                              : _textColor.withOpacity(0.85),
                         ),
                       ),
                     ),
@@ -402,9 +413,10 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
       maxChildSize: 0.95,
       builder: (context, scrollController) {
         return fm.Container(
-          decoration: const fm.BoxDecoration(
-            color: fm.Colors.white,
-            borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
+          decoration: fm.BoxDecoration(
+            color: _darkBlue,
+            borderRadius:
+                const fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
           ),
           child: fm.Column(
             crossAxisAlignment: fm.CrossAxisAlignment.stretch,
@@ -416,7 +428,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                   width: 40,
                   height: 4,
                   decoration: fm.BoxDecoration(
-                    color: fm.Colors.grey.shade300,
+                    color: _textColorTertiary.withOpacity(0.5),
                     borderRadius: fm.BorderRadius.circular(2),
                   ),
                 ),
@@ -434,17 +446,28 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                     // Название объекта
                     fm.Text(
                       widget.placemark.name,
-                      style: fm.Theme.of(context).textTheme.headlineMedium,
+                      style: fm.Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                              color: _textColor,
+                              fontWeight: fm.FontWeight.bold),
                     ),
 
                     // Описание объекта
-                    fm.Text(
-                      widget.placemark.description ?? 'Нет описания',
-                      style:
-                          fm.Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: fm.Colors.grey.shade600,
-                              ),
-                    ),
+                    if (widget.placemark.description != null &&
+                        widget.placemark.description!.isNotEmpty) ...[
+                      const fm.SizedBox(height: 8),
+                      fm.Text(
+                        widget.placemark.description!,
+                        style: fm.Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(
+                              color: _textColorSecondary,
+                            ),
+                      ),
+                    ]
                   ],
                 ),
               ),
@@ -452,8 +475,9 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
               // Вкладки (табы)
               fm.TabBar(
                 controller: _tabController,
-                labelColor: fm.Colors.blue.shade900,
-                unselectedLabelColor: fm.Colors.grey,
+                labelColor: _accentColor,
+                unselectedLabelColor: _textColorSecondary,
+                indicatorColor: _accentColor,
                 tabs: const [
                   fm.Tab(text: 'Описание'),
                   fm.Tab(text: 'Теги'),
@@ -474,8 +498,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                         fm.Row(
                           crossAxisAlignment: fm.CrossAxisAlignment.start,
                           children: [
-                            const fm.Icon(fm.Icons.location_on,
-                                color: fm.Colors.black),
+                            fm.Icon(fm.Icons.location_on,
+                                color: _textColorSecondary),
                             const fm.SizedBox(width: 16),
                             fm.Expanded(
                               child: fm.Column(
@@ -484,15 +508,16 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   fm.Text('Адрес',
                                       style: fm.Theme.of(context)
                                           .textTheme
-                                          .titleMedium),
+                                          .titleMedium
+                                          ?.copyWith(color: _textColor)),
                                   // Показываем адрес, если он есть, иначе заглушку
                                   fm.Text(
                                     widget.placemark.address ??
                                         'Адрес не указан',
                                     style: fm.TextStyle(
                                       color: widget.placemark.address != null
-                                          ? fm.Colors.black87
-                                          : fm.Colors.grey,
+                                          ? _textColorSecondary
+                                          : _textColorTertiary,
                                     ),
                                   ),
                                   // Если есть адрес, показываем кнопку маршрута
@@ -502,6 +527,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                           widget.placemark.location.latitude,
                                           widget.placemark.location.longitude),
                                       style: fm.TextButton.styleFrom(
+                                        foregroundColor: _accentColor,
                                         padding: fm.EdgeInsets.zero,
                                         alignment: fm.Alignment.centerLeft,
                                       ),
@@ -513,14 +539,13 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                           ],
                         ),
 
-                        fm.Divider(color: fm.Colors.grey.shade300),
+                        fm.Divider(color: _textColorTertiary.withOpacity(0.2)),
 
                         // Контакты
                         fm.Row(
                           crossAxisAlignment: fm.CrossAxisAlignment.start,
                           children: [
-                            const fm.Icon(fm.Icons.phone,
-                                color: fm.Colors.black),
+                            fm.Icon(fm.Icons.phone, color: _textColorSecondary),
                             const fm.SizedBox(width: 16),
                             fm.Expanded(
                               child: fm.Column(
@@ -529,7 +554,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   fm.Text('Контакты',
                                       style: fm.Theme.of(context)
                                           .textTheme
-                                          .titleMedium),
+                                          .titleMedium
+                                          ?.copyWith(color: _textColor)),
                                   // Показываем телефон, если он есть, иначе заглушку
                                   fm.Text(
                                     widget.placemark.phone != null
@@ -538,8 +564,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                         : 'Телефон не указан',
                                     style: fm.TextStyle(
                                       color: widget.placemark.phone != null
-                                          ? fm.Colors.black87
-                                          : fm.Colors.grey,
+                                          ? _textColorSecondary
+                                          : _textColorTertiary,
                                     ),
                                   ),
                                   // Если есть телефон, добавляем кнопку для звонка
@@ -549,6 +575,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                         _makePhoneCall(widget.placemark.phone!);
                                       },
                                       style: fm.TextButton.styleFrom(
+                                        foregroundColor: _accentColor,
                                         padding: fm.EdgeInsets.zero,
                                         alignment: fm.Alignment.centerLeft,
                                       ),
@@ -560,14 +587,14 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                           ],
                         ),
 
-                        fm.Divider(color: fm.Colors.grey.shade300),
+                        fm.Divider(color: _textColorTertiary.withOpacity(0.2)),
 
                         // Расстояние до объекта
                         fm.Row(
                           crossAxisAlignment: fm.CrossAxisAlignment.start,
                           children: [
-                            const fm.Icon(fm.Icons.directions,
-                                color: fm.Colors.black),
+                            fm.Icon(fm.Icons.directions,
+                                color: _textColorSecondary),
                             const fm.SizedBox(width: 16),
                             fm.Expanded(
                               child: fm.Column(
@@ -576,7 +603,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   fm.Text('Расстояние',
                                       style: fm.Theme.of(context)
                                           .textTheme
-                                          .titleMedium),
+                                          .titleMedium
+                                          ?.copyWith(color: _textColor)),
                                   // Показываем расстояние, если оно рассчитано
                                   fm.Text(
                                     widget.distance != null
@@ -584,8 +612,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                         : 'Расстояние не определено',
                                     style: fm.TextStyle(
                                       color: widget.distance != null
-                                          ? fm.Colors.black87
-                                          : fm.Colors.grey,
+                                          ? _textColorSecondary
+                                          : _textColorTertiary,
                                     ),
                                   ),
                                 ],
@@ -594,14 +622,14 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                           ],
                         ),
 
-                        fm.Divider(color: fm.Colors.grey.shade300),
+                        fm.Divider(color: _textColorTertiary.withOpacity(0.2)),
 
                         // Разнообразие оборудования
                         fm.Row(
                           crossAxisAlignment: fm.CrossAxisAlignment.start,
                           children: [
-                            const fm.Icon(fm.Icons.fitness_center,
-                                color: fm.Colors.black),
+                            fm.Icon(fm.Icons.fitness_center,
+                                color: _textColorSecondary),
                             const fm.SizedBox(width: 16),
                             fm.Expanded(
                               child: fm.Column(
@@ -610,17 +638,18 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                                   fm.Text('Разнообразие оборудования',
                                       style: fm.Theme.of(context)
                                           .textTheme
-                                          .titleMedium),
+                                          .titleMedium
+                                          ?.copyWith(color: _textColor)),
                                   // Индикатор разнообразия
                                   if (widget.placemark.equipmentDiversity !=
                                       null)
                                     _buildDiversityIndicator(
                                         widget.placemark.equipmentDiversity!)
                                   else
-                                    const fm.Text(
+                                    fm.Text(
                                       'Нет данных о разнообразии оборудования',
                                       style: fm.TextStyle(
-                                        color: fm.Colors.grey,
+                                        color: _textColorTertiary,
                                       ),
                                     ),
                                 ],
@@ -653,7 +682,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
         widget.placemark.photoUrls!.isEmpty) {
       return fm.Container(
         height: 200,
-        color: fm.Colors.grey.shade200,
+        color: fm.Colors.black.withOpacity(0.2),
         child: _buildNoPhotoPlaceholder(),
       );
     }
@@ -717,8 +746,8 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                     decoration: fm.BoxDecoration(
                       shape: fm.BoxShape.circle,
                       color: _currentPhotoIndex == index
-                          ? fm.Colors.white
-                          : fm.Colors.white.withOpacity(0.5),
+                          ? _accentColor
+                          : _textColorSecondary.withOpacity(0.5),
                     ),
                   ),
                 ),
@@ -741,11 +770,11 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
               'assets/images/no_photo.png',
               width: 64,
               height: 64,
+              color: _textColorTertiary,
             ),
           ),
           const fm.SizedBox(height: 8),
-          fm.Text('Нет фото',
-              style: fm.TextStyle(color: fm.Colors.grey.withOpacity(0.5))),
+          fm.Text('Нет фото', style: fm.TextStyle(color: _textColorTertiary)),
         ],
       ),
     );
@@ -872,7 +901,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
           width: double.infinity,
           height: 8,
           decoration: fm.BoxDecoration(
-            color: fm.Colors.grey.shade200,
+            color: fm.Colors.white.withOpacity(0.1),
             borderRadius: fm.BorderRadius.circular(4),
           ),
           child: fm.FractionallySizedBox(
@@ -895,7 +924,7 @@ class _ObjectDetailsSheetState extends fm.State<ObjectDetailsSheet>
                   ? 'Средний уровень'
                   : 'Ограниченный уровень',
           style: fm.TextStyle(
-            color: fm.Colors.grey.shade700,
+            color: _textColorSecondary,
             fontSize: 12,
           ),
         ),
