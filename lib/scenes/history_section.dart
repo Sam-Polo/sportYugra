@@ -1,5 +1,6 @@
 import 'dart:developer' as dev;
 import 'package:flutter/material.dart' as fm;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/tag_changes/tag_change_model.dart';
 import '../data/tag_changes/firestore_tag_changes.dart';
 
@@ -15,10 +16,15 @@ class _HistorySectionState extends fm.State<HistorySection> {
   final FirestoreTagChanges _firestoreTagChanges = FirestoreTagChanges();
   List<TagChangeData> _changes = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _errorMessage;
+  bool _hasMoreChanges = false;
 
-  // Максимальное количество загружаемых записей
-  final int _limit = 50;
+  // Количество записей, загружаемых за один раз
+  final int _pageSize = 10;
+
+  // Последний загруженный документ для пагинации
+  DocumentSnapshot? _lastDocument;
 
   @override
   void initState() {
@@ -26,7 +32,7 @@ class _HistorySectionState extends fm.State<HistorySection> {
     _loadChanges();
   }
 
-  // Загрузка истории изменений
+  // Загрузка первой порции истории изменений
   Future<void> _loadChanges() async {
     try {
       setState(() {
@@ -34,12 +40,24 @@ class _HistorySectionState extends fm.State<HistorySection> {
         _errorMessage = null;
       });
 
-      final changes = await _firestoreTagChanges.getTagChanges(limit: _limit);
+      final changes = await _firestoreTagChanges.getTagChanges(
+        limit: _pageSize,
+      );
 
       if (mounted) {
         setState(() {
           _changes = changes;
           _isLoading = false;
+
+          // Сохраняем последний документ для пагинации
+          if (changes.isNotEmpty) {
+            _lastDocument = changes.last.snapshot;
+
+            // Проверяем, есть ли еще записи
+            _checkForMoreChanges();
+          } else {
+            _hasMoreChanges = false;
+          }
         });
       }
     } catch (e) {
@@ -50,6 +68,69 @@ class _HistorySectionState extends fm.State<HistorySection> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Загрузка дополнительных записей
+  Future<void> _loadMoreChanges() async {
+    if (_isLoadingMore || _lastDocument == null) return;
+
+    try {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      final moreChanges = await _firestoreTagChanges.getTagChanges(
+        limit: _pageSize,
+        lastDocument: _lastDocument,
+      );
+
+      if (mounted) {
+        setState(() {
+          // Добавляем новые записи к существующим
+          _changes.addAll(moreChanges);
+          _isLoadingMore = false;
+
+          // Обновляем последний документ для следующей загрузки
+          if (moreChanges.isNotEmpty) {
+            _lastDocument = moreChanges.last.snapshot;
+
+            // Проверяем, есть ли еще записи
+            _checkForMoreChanges();
+          } else {
+            _hasMoreChanges = false;
+          }
+        });
+      }
+    } catch (e) {
+      dev.log('Ошибка при загрузке дополнительных изменений: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  // Проверяет, есть ли еще записи для загрузки
+  Future<void> _checkForMoreChanges() async {
+    if (_lastDocument == null) {
+      setState(() {
+        _hasMoreChanges = false;
+      });
+      return;
+    }
+
+    try {
+      final hasMore = await _firestoreTagChanges.hasMoreChanges(_lastDocument!);
+
+      if (mounted) {
+        setState(() {
+          _hasMoreChanges = hasMore;
+        });
+      }
+    } catch (e) {
+      dev.log('Ошибка при проверке наличия дополнительных записей: $e');
     }
   }
 
@@ -202,13 +283,42 @@ class _HistorySectionState extends fm.State<HistorySection> {
 
   // Список изменений
   fm.Widget _buildChangesList() {
-    return fm.ListView.builder(
+    return fm.ListView(
       padding: const fm.EdgeInsets.only(bottom: 16),
-      itemCount: _changes.length,
-      itemBuilder: (context, index) {
-        final change = _changes[index];
-        return _buildChangeItem(change);
-      },
+      children: [
+        // Список изменений
+        ...List.generate(_changes.length, (index) {
+          final change = _changes[index];
+          return _buildChangeItem(change);
+        }),
+
+        // Кнопка "Загрузить еще" или индикатор загрузки
+        if (_isLoadingMore)
+          fm.Padding(
+            padding: const fm.EdgeInsets.all(16.0),
+            child: fm.Center(
+              child: fm.CircularProgressIndicator(
+                valueColor: fm.AlwaysStoppedAnimation<fm.Color>(
+                  fm.Color(0xFFFC4C4C),
+                ),
+              ),
+            ),
+          )
+        else if (_hasMoreChanges)
+          fm.Padding(
+            padding: const fm.EdgeInsets.all(16.0),
+            child: fm.Center(
+              child: fm.ElevatedButton(
+                onPressed: _loadMoreChanges,
+                style: fm.ElevatedButton.styleFrom(
+                  backgroundColor: fm.Colors.white.withOpacity(0.1),
+                  foregroundColor: fm.Colors.white,
+                ),
+                child: const fm.Text('Загрузить еще'),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -8,13 +8,30 @@ class FirestoreTagChanges {
 
   /// Получает список всех изменений тегов, отсортированных по времени (новые сначала)
   /// Ограничение limit определяет максимальное количество загружаемых записей
-  Future<List<TagChangeData>> getTagChanges({int limit = 50}) async {
+  /// Если указан lastDocument, загрузка начнется после этого документа (для пагинации)
+  Future<List<TagChangeData>> getTagChanges({
+    int limit = 10,
+    DocumentSnapshot? lastDocument,
+  }) async {
     try {
-      final querySnapshot = await _firestore
+      // Начинаем запрос
+      Query query = _firestore
           .collection('tag_changes')
           .orderBy('timestamp', descending: true)
-          .limit(limit)
-          .get();
+          .limit(limit);
+
+      // Если есть последний документ, начинаем после него (для пагинации)
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      // Выполняем запрос
+      final querySnapshot = await query.get();
+
+      // Если запрос не вернул документы, возвращаем пустой список
+      if (querySnapshot.docs.isEmpty) {
+        return [];
+      }
 
       final changes = querySnapshot.docs
           .map((doc) => TagChangeData.fromFirestore(doc))
@@ -30,19 +47,49 @@ class FirestoreTagChanges {
     }
   }
 
+  /// Проверяет, есть ли еще изменения после указанного документа
+  /// Возвращает true, если есть еще записи
+  Future<bool> hasMoreChanges(DocumentSnapshot lastDocument) async {
+    try {
+      // Запрашиваем 1 документ после последнего, чтобы проверить наличие
+      final querySnapshot = await _firestore
+          .collection('tag_changes')
+          .orderBy('timestamp', descending: true)
+          .startAfterDocument(lastDocument)
+          .limit(1)
+          .get();
+
+      // Если есть хотя бы один документ, значит есть еще изменения
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      dev.log('Ошибка при проверке наличия дополнительных изменений: $e');
+      return false;
+    }
+  }
+
   /// Получает список изменений тегов для конкретного объекта
-  Future<List<TagChangeData>> getTagChangesForObject(String objectId,
-      {int limit = 20}) async {
+  Future<List<TagChangeData>> getTagChangesForObject(
+    String objectId, {
+    int limit = 20,
+    DocumentSnapshot? lastDocument,
+  }) async {
     try {
       // Получаем ссылку на объект
       final objectRef = _firestore.collection('sportobjects').doc(objectId);
 
-      final querySnapshot = await _firestore
+      // Создаем запрос
+      Query query = _firestore
           .collection('tag_changes')
           .where('object_id', isEqualTo: objectRef)
           .orderBy('timestamp', descending: true)
-          .limit(limit)
-          .get();
+          .limit(limit);
+
+      // Если есть последний документ, начинаем после него (для пагинации)
+      if (lastDocument != null) {
+        query = query.startAfterDocument(lastDocument);
+      }
+
+      final querySnapshot = await query.get();
 
       final changes = querySnapshot.docs
           .map((doc) => TagChangeData.fromFirestore(doc))
