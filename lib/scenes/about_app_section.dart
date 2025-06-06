@@ -139,6 +139,10 @@ class AboutAppSection extends fm.StatelessWidget {
                     fm.Icons.info_outline, 'Информация об объектах'),
                 _buildFeatureItem(
                     fm.Icons.analytics, 'Разнообразие оборудования'),
+                _buildFeatureItem(
+                    fm.Icons.update, 'История изменений тегов объектов'),
+                _buildFeatureItem(
+                    fm.Icons.support_agent, 'Поддержка и обратная связь'),
                 const fm.SizedBox(height: 24),
 
                 // разделитель
@@ -385,6 +389,74 @@ class AboutAppSection extends fm.StatelessWidget {
                             padding: fm.EdgeInsets.only(bottom: 12),
                             child: fm.Text(
                               'Расчет процента имеющихся тегов у объекта среди всех возможных тегов в системе. Это позволяет быстро оценить наполненность тренажерного зала и разнообразие доступного оборудования.',
+                              style: fm.TextStyle(
+                                color: fm.Colors.white70,
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                fm.Row(
+                  crossAxisAlignment: fm.CrossAxisAlignment.start,
+                  children: [
+                    const fm.Icon(fm.Icons.update,
+                        color: fm.Colors.white70, size: 18),
+                    const fm.SizedBox(width: 8),
+                    fm.Expanded(
+                      child: fm.Column(
+                        crossAxisAlignment: fm.CrossAxisAlignment.start,
+                        children: [
+                          const fm.Text(
+                            'История изменений',
+                            style: fm.TextStyle(
+                              color: fm.Colors.white,
+                              fontSize: 16,
+                              fontWeight: fm.FontWeight.bold,
+                            ),
+                          ),
+                          const fm.Padding(
+                            padding: fm.EdgeInsets.only(bottom: 12),
+                            child: fm.Text(
+                              'Возможность просмотра истории изменений тегов спортивных объектов. Отображает кто, когда и какие изменения внес, включая добавленные и удаленные теги каждого объекта.',
+                              style: fm.TextStyle(
+                                color: fm.Colors.white70,
+                                fontSize: 14,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                fm.Row(
+                  crossAxisAlignment: fm.CrossAxisAlignment.start,
+                  children: [
+                    const fm.Icon(fm.Icons.support_agent,
+                        color: fm.Colors.white70, size: 18),
+                    const fm.SizedBox(width: 8),
+                    fm.Expanded(
+                      child: fm.Column(
+                        crossAxisAlignment: fm.CrossAxisAlignment.start,
+                        children: [
+                          const fm.Text(
+                            'Поддержка',
+                            style: fm.TextStyle(
+                              color: fm.Colors.white,
+                              fontSize: 16,
+                              fontWeight: fm.FontWeight.bold,
+                            ),
+                          ),
+                          const fm.Padding(
+                            padding: fm.EdgeInsets.only(bottom: 12),
+                            child: fm.Text(
+                              'Функция обратной связи с разработчиками через Email или Telegram для решения проблем, вопросов или предложений по улучшению приложения.',
                               style: fm.TextStyle(
                                 color: fm.Colors.white70,
                                 fontSize: 14,

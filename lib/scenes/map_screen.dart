@@ -15,6 +15,7 @@ import '../camera/camera_manager.dart';
 import '../scenes/search_screen.dart';
 import '../scenes/history_section.dart';
 import '../scenes/about_app_section.dart';
+import '../scenes/support_section.dart';
 import '../permissions/permission_manager.dart';
 import '../widgets/map_control_button.dart';
 import '../listeners/map_object_tap_listener.dart';
@@ -1356,6 +1357,18 @@ class _MapScreenState extends fm.State<MapScreen>
     });
     if (index == 0) {
       _openSearchScreen(context, autoFocus: false);
+      if (mounted)
+        setState(() {
+          _selectedTabIndex = 2;
+        });
+    } else if (index == 1) {
+      // Раздел "Поддержка"
+      await fm.showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: fm.Colors.transparent,
+        builder: (context) => const SupportSection(),
+      );
       if (mounted)
         setState(() {
           _selectedTabIndex = 2;

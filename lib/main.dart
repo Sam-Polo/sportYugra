@@ -8,12 +8,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart'; // импортируем �
 import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'config/env_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Загружаем переменные окружения из .env файла
-  await dotenv.load(fileName: ".env");
+  await EnvConfig.load();
   developer.log('Loaded .env file');
 
   // Инициализация Firebase
