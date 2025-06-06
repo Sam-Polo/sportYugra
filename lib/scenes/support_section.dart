@@ -107,6 +107,54 @@ class SupportSection extends fm.StatelessWidget {
 
                 const fm.SizedBox(height: 36),
 
+                // Блок для владельцев объектов
+                fm.Container(
+                  padding: const fm.EdgeInsets.symmetric(
+                      vertical: 16, horizontal: 20),
+                  decoration: fm.BoxDecoration(
+                    color: fm.Colors.white.withOpacity(0.05),
+                    borderRadius: fm.BorderRadius.circular(12),
+                    border: fm.Border.all(
+                      color: fm.Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                  child: fm.Row(
+                    children: [
+                      fm.Icon(
+                        fm.Icons.business,
+                        color: fm.Colors.white70,
+                        size: 32,
+                      ),
+                      const fm.SizedBox(width: 16),
+                      fm.Expanded(
+                        child: fm.Column(
+                          crossAxisAlignment: fm.CrossAxisAlignment.start,
+                          children: [
+                            fm.Text(
+                              'Для владельцев объектов',
+                              style: const fm.TextStyle(
+                                color: fm.Colors.white,
+                                fontSize: 16,
+                                fontWeight: fm.FontWeight.bold,
+                              ),
+                            ),
+                            const fm.SizedBox(height: 4),
+                            fm.Text(
+                              'Вашего объекта нет на карте или Вы являетесь владельцем существующего? Свяжитесь с нами, и мы предоставим вам доступ к управлению информацией.',
+                              style: const fm.TextStyle(
+                                color: fm.Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const fm.SizedBox(height: 36),
+
                 // Информация о способе связи
                 const fm.Center(
                   child: fm.Text(
