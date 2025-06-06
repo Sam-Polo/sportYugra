@@ -255,19 +255,19 @@ class _HistorySectionState extends fm.State<HistorySection> {
 
   @override
   fm.Widget build(fm.BuildContext context) {
-    return fm.SafeArea(
-      child: fm.Container(
-        decoration: const fm.BoxDecoration(
-          color: fm.Color(0xFF0A1A2F), // темно-синий фон
-          borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
-        ),
+    return fm.Container(
+      decoration: const fm.BoxDecoration(
+        color: fm.Color(0xFF0A1A2F), // темно-синий фон
+        borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
+      ),
+      child: fm.SafeArea(
         child: fm.Column(
           mainAxisSize: fm.MainAxisSize.min,
           crossAxisAlignment: fm.CrossAxisAlignment.start,
           children: [
             // Заголовок с кнопкой назад
             fm.Padding(
-              padding: const fm.EdgeInsets.fromLTRB(16, 24, 16, 16),
+              padding: const fm.EdgeInsets.fromLTRB(16, 32, 16, 16),
               child: fm.Row(
                 children: [
                   fm.IconButton(
@@ -277,7 +277,7 @@ class _HistorySectionState extends fm.State<HistorySection> {
                     tooltip: 'Назад',
                   ),
                   const fm.Text(
-                    'История изменений',
+                    'Лента изменений',
                     style: fm.TextStyle(
                       color: fm.Colors.white,
                       fontSize: 20,

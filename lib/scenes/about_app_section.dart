@@ -6,15 +6,15 @@ class AboutAppSection extends fm.StatelessWidget {
 
   @override
   fm.Widget build(fm.BuildContext context) {
-    return fm.SafeArea(
-      child: fm.Container(
-        decoration: const fm.BoxDecoration(
-          color: fm.Color(0xFF0A1A2F), // темно-синий фон
-          borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
-        ),
+    return fm.Container(
+      decoration: const fm.BoxDecoration(
+        color: fm.Color(0xFF0A1A2F), // темно-синий фон
+        borderRadius: fm.BorderRadius.vertical(top: fm.Radius.circular(16)),
+      ),
+      child: fm.SafeArea(
         child: fm.SingleChildScrollView(
           child: fm.Padding(
-            padding: const fm.EdgeInsets.all(24),
+            padding: const fm.EdgeInsets.fromLTRB(28, 32, 28, 16),
             child: fm.Column(
               mainAxisSize: fm.MainAxisSize.min,
               crossAxisAlignment: fm.CrossAxisAlignment.start,
@@ -140,7 +140,7 @@ class AboutAppSection extends fm.StatelessWidget {
                 _buildFeatureItem(
                     fm.Icons.analytics, 'Разнообразие оборудования'),
                 _buildFeatureItem(
-                    fm.Icons.update, 'История изменений тегов объектов'),
+                    fm.Icons.dynamic_feed, 'Лента изменений тегов объектов'),
                 _buildFeatureItem(
                     fm.Icons.support_agent, 'Поддержка и обратная связь'),
                 const fm.SizedBox(height: 24),
@@ -354,7 +354,7 @@ class AboutAppSection extends fm.StatelessWidget {
                           const fm.Padding(
                             padding: fm.EdgeInsets.only(bottom: 12),
                             child: fm.Text(
-                              'Подробная информация включает описание, адрес, расстояние, контакты (телефон) и разнообразие оборудования. Отдельный раздел для просмотра всех имеющихся тегов у объекта в виде иерархии.',
+                              'Подробная информация включает описание, адрес, расстояние, контактную информацию и разнообразие оборудования. Отдельный раздел для просмотра всех имеющихся типов оборудования у объекта.',
                               style: fm.TextStyle(
                                 color: fm.Colors.white70,
                                 fontSize: 14,
@@ -388,7 +388,7 @@ class AboutAppSection extends fm.StatelessWidget {
                           const fm.Padding(
                             padding: fm.EdgeInsets.only(bottom: 12),
                             child: fm.Text(
-                              'Расчет процента имеющихся тегов у объекта среди всех возможных тегов в системе. Это позволяет быстро оценить наполненность тренажерного зала и разнообразие доступного оборудования.',
+                              'Расчет процента имеющихся типов оборудования у объекта среди всех возможных типов в системе. Это позволяет быстро оценить наполненность тренажерного зала и разнообразие доступного оборудования.',
                               style: fm.TextStyle(
                                 color: fm.Colors.white70,
                                 fontSize: 14,
@@ -404,7 +404,7 @@ class AboutAppSection extends fm.StatelessWidget {
                 fm.Row(
                   crossAxisAlignment: fm.CrossAxisAlignment.start,
                   children: [
-                    const fm.Icon(fm.Icons.update,
+                    const fm.Icon(fm.Icons.dynamic_feed,
                         color: fm.Colors.white70, size: 18),
                     const fm.SizedBox(width: 8),
                     fm.Expanded(
@@ -412,7 +412,7 @@ class AboutAppSection extends fm.StatelessWidget {
                         crossAxisAlignment: fm.CrossAxisAlignment.start,
                         children: [
                           const fm.Text(
-                            'История изменений',
+                            'Лента изменений',
                             style: fm.TextStyle(
                               color: fm.Colors.white,
                               fontSize: 16,
@@ -422,7 +422,7 @@ class AboutAppSection extends fm.StatelessWidget {
                           const fm.Padding(
                             padding: fm.EdgeInsets.only(bottom: 12),
                             child: fm.Text(
-                              'Возможность просмотра истории изменений тегов спортивных объектов. Отображает кто, когда и какие изменения внес, включая добавленные и удаленные теги каждого объекта.',
+                              'Возможность просмотра ленты изменений в оборудовании спортивных объектов. Отображает, когда и какие изменения были внесены.',
                               style: fm.TextStyle(
                                 color: fm.Colors.white70,
                                 fontSize: 14,

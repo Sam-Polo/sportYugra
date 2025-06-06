@@ -943,6 +943,8 @@ class _MapScreenState extends fm.State<MapScreen>
           selectedItemColor: _startColor,
           unselectedItemColor: fm.Colors.grey,
           showUnselectedLabels: true,
+          selectedLabelStyle: const fm.TextStyle(fontSize: 13.0),
+          unselectedLabelStyle: const fm.TextStyle(fontSize: 11.0),
           items: [
             const fm.BottomNavigationBarItem(
               icon: fm.Icon(fm.Icons.filter_list),
@@ -971,8 +973,8 @@ class _MapScreenState extends fm.State<MapScreen>
               label: 'Карта',
             ),
             const fm.BottomNavigationBarItem(
-              icon: fm.Icon(fm.Icons.update),
-              label: 'История',
+              icon: fm.Icon(fm.Icons.dynamic_feed),
+              label: 'Лента',
             ),
             const fm.BottomNavigationBarItem(
               icon: fm.Icon(fm.Icons.info_outline),
@@ -1287,8 +1289,13 @@ class _MapScreenState extends fm.State<MapScreen>
 
                     _buildTutorialPoint(
                       icon: fm.Icons.filter_list,
+                      text: 'Применяй фильтры по типам оборудования',
+                    ),
+
+                    _buildTutorialPoint(
+                      icon: fm.Icons.dynamic_feed,
                       text:
-                          'Применяй фильтры по типам оборудования через поисковую строку',
+                          'Следите за изменениями в типах оборудования тренажерных залов в разделе "Лента"',
                     ),
 
                     const fm.SizedBox(height: 16),
