@@ -143,7 +143,7 @@ class _MapScreenState extends fm.State<MapScreen>
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
-  final bool _enableAutoCameraMove = false;
+  final bool _enableAutoCameraMove = true;
 
   // Флаг для отслеживания первоначальной инициализации
   bool _isInitiallyLoaded = false;
