@@ -247,7 +247,13 @@ class SupportSection extends fm.StatelessWidget {
       path: EnvConfig.developerEmail,
       queryParameters: {
         'subject': 'Поддержка приложения SportYugra',
-        'body': 'Здравствуйте,\n\n',
+        'body': 'Здравствуйте,\n\n\n'
+            '---\n'
+            'Если вы являетесь сотрудником организации, укажите следующие данные:\n\n'
+            'ФИО: \n'
+            'Должность: \n'
+            'Контактные данные: \n'
+            'Объект, по которому обращаетесь: \n',
       },
     );
 
