@@ -6,8 +6,10 @@
 *.swp
 .buildlog/
 .history
-
-
+.DS_Store
+.atom/
+.svn/
+migrate_working_dir/
 
 # Flutter repo-specific
 /bin/cache/
@@ -40,7 +42,7 @@ analysis_benchmark.json
 .packages
 .pub-preload-cache/
 .pub/
-build/
+/build/
 flutter_*.png
 linked_*.ds
 unlinked.ds
@@ -124,8 +126,8 @@ app.*.symbols
 .cursor/
 .cursorignore
 *.iml
+*.ipr
 *.iws
-.DS_Store
 
 # Конфигурационные файлы
 *.env
@@ -145,6 +147,17 @@ node_modules/
 
 # firebase options
 lib/firebase_options.dart
+
+# Symbolication related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Code examples for VKR documentation
+code_examples_for_vkr.dart
 
 
 

@@ -845,7 +845,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
         crossAxisAlignment: fm.CrossAxisAlignment.start,
         children: [
           const fm.Text(
-            'Фильтры по тегам:',
+            'Фильтры по типам оборудования:',
             style: fm.TextStyle(
               color: fm.Colors.white,
               fontSize: 18,

@@ -942,9 +942,9 @@ class _MapScreenState extends fm.State<MapScreen>
           type: fm.BottomNavigationBarType.fixed,
           selectedItemColor: _startColor,
           unselectedItemColor: fm.Colors.grey,
+          selectedFontSize: 13.0,
+          unselectedFontSize: 11.0,
           showUnselectedLabels: true,
-          selectedLabelStyle: const fm.TextStyle(fontSize: 13.0),
-          unselectedLabelStyle: const fm.TextStyle(fontSize: 11.0),
           items: [
             const fm.BottomNavigationBarItem(
               icon: fm.Icon(fm.Icons.filter_list),
