@@ -3,8 +3,8 @@
 Учебный дипломный проект.
 Мобильное приложение на Flutter с интерактивной картой для поиска, фильтрации и просмотра спортивных объектов в Ханты-Мансийске с использованием SDK от Яндекс.Карт (yandex_maps_mapkit).
 
-<img src="https://github.com/user-attachments/assets/c1624de6-ce23-4ea3-8b7f-8062c90ea374" alt="Screenshot_206" width="30%"/>
-<img src="https://github.com/user-attachments/assets/299afd0c-d5ac-497d-b053-505405db275f" alt="Screenshot_205" width="30%"/>
+<img src="https://github.com/user-attachments/assets/c1624de6-ce23-4ea3-8b7f-8062c90ea374" alt="Screenshot_206" width="38%"/>
+<img src="https://github.com/user-attachments/assets/299afd0c-d5ac-497d-b053-505405db275f" alt="Screenshot_205" width="38%"/>
 
 
 ## Структура проекта
@@ -360,10 +360,10 @@
 
 ## Скриншоты:
 
-<img src="https://github.com/user-attachments/assets/6c9e260c-069f-4694-be92-2b6fdd734c42" alt="Screenshot_204" width="30%"/>
-<img src="https://github.com/user-attachments/assets/ba578adc-68d7-4227-b7f4-02494ed5c90a" alt="Screenshot_203" width="30%"/>
-<img src="https://github.com/user-attachments/assets/299afd0c-d5ac-497d-b053-505405db275f" alt="Screenshot_205" width="30%"/>
-<img src="https://github.com/user-attachments/assets/c1624de6-ce23-4ea3-8b7f-8062c90ea374" alt="Screenshot_206" width="30%"/>
-<img src="https://github.com/user-attachments/assets/f8cf107f-8b37-4862-a912-5b758dd6e812" alt="Screenshot_207" width="30%"/>
-<img src="https://github.com/user-attachments/assets/5c1045b8-c422-4943-badf-0cd69f0f9803" alt="Screenshot_208" width="30%"/>
-<img src="https://github.com/user-attachments/assets/bbec77f8-75af-4999-8ed0-840e840d3de6" alt="Screenshot_209" width="30%"/>
+<img src="https://github.com/user-attachments/assets/6c9e260c-069f-4694-be92-2b6fdd734c42" alt="Screenshot_204" width="50%"/>
+<img src="https://github.com/user-attachments/assets/ba578adc-68d7-4227-b7f4-02494ed5c90a" alt="Screenshot_203" width="50%"/>
+<img src="https://github.com/user-attachments/assets/299afd0c-d5ac-497d-b053-505405db275f" alt="Screenshot_205" width="50%"/>
+<img src="https://github.com/user-attachments/assets/c1624de6-ce23-4ea3-8b7f-8062c90ea374" alt="Screenshot_206" width="50%"/>
+<img src="https://github.com/user-attachments/assets/f8cf107f-8b37-4862-a912-5b758dd6e812" alt="Screenshot_207" width="50%"/>
+<img src="https://github.com/user-attachments/assets/5c1045b8-c422-4943-badf-0cd69f0f9803" alt="Screenshot_208" width="50%"/>
+<img src="https://github.com/user-attachments/assets/bbec77f8-75af-4999-8ed0-840e840d3de6" alt="Screenshot_209" width="50%"/>
