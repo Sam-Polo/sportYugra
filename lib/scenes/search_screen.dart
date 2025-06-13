@@ -548,7 +548,7 @@ class _SearchScreenState extends fm.State<SearchScreen>
           if (_showSearchResults)
             fm.Positioned(
               top: fm.MediaQuery.of(context).padding.top +
-                  50, // Позиционируем под строкой поиска
+                  120, // увеличиваем отступ с 50 до 120, чтобы блок не перекрывал поисковую строку
               left: 16,
               right: 16,
               child: _buildSearchResults(),
