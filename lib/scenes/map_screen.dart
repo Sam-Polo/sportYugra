@@ -139,16 +139,43 @@ class MapScreen extends fm.StatefulWidget {
 class _MapScreenState extends fm.State<MapScreen>
     with fm.WidgetsBindingObserver
     implements UserLocationObjectListener, MapCameraListener {
-  // Экземпляр Firestore для прямого доступа к данным
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // Флаг для включения/отключения автоматического перемещения камеры к пользователю после загрузки и определения местоположения
+  // === ФЛАГИ И КОНСТАНТЫ ===
+  // флаг: автоматическое перемещение камеры к пользователю после загрузки и определения местоположения
   final bool _enableAutoCameraMove = true;
 
-  // Флаг для отслеживания первоначальной инициализации
+  // флаг для отслеживания первоначальной инициализации
   bool _isInitiallyLoaded = false;
 
-  // Кэш для хранения полной информации о плейсмарках
+  // флаг загрузки данных
+  bool _isLoading = false;
+
+  // флаг загрузки плейсмарков
+  bool _placemarksLoaded = false;
+
+  // флаг инициализации местоположения
+  bool _locationInitialized = false;
+
+  // флаг для отображения кнопки "Очистить фильтры"
+  bool _hasActiveFilters = false;
+
+  // флаг для отображения кнопки refresh обновления данных (для отладки)
+  static const bool _showRefreshButton = false;
+
+  // для отслеживания изменений видимости текста
+  bool _lastTextVisibility = false;
+
+  // флаг показа обучающего всплывающего окна
+  bool _isFirstLaunch = false;
+  final bool _showTutorial = false;
+
+  // поле состояния для отслеживания загрузки деталей объекта
+  bool _isLoadingDetails = false;
+
+  // === ОСНОВНЫЕ ПЕРЕМЕННЫЕ ===
+  // экземпляр Firestore для прямого доступа к данным
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // кэш для хранения полной информации о плейсмарках
   final Map<String, PlacemarkData> _placemarkDetailsCache = {};
 
   MapWindow? _mapWindow;
@@ -158,49 +185,28 @@ class _MapScreenState extends fm.State<MapScreen>
   CameraManager? _cameraManager;
   late final _permissionManager = const PermissionManager();
 
-  // Менеджер объектов на карте
+  // менеджер объектов на карте
   MapObjectsManager? _mapObjectsManager;
 
-  // Сервис для работы с Firestore
+  // сервис для работы с Firestore
   final _firestorePlacemarks = FirestorePlacemarks();
   final _firestoreTags = FirestoreTags();
 
-  // Флаг загрузки данных
-  bool _isLoading = false;
-  bool _placemarksLoaded = false; // флаг загрузки плейсмарков
-  bool _locationInitialized = false; // флаг инициализации местоположения
-
-  // Порог зума, ниже которого названия меток будут скрыты
+  // порог зума, ниже которого названия меток будут скрыты
   final double _textVisibilityZoomThreshold = 13.0;
 
-  // Текущее местоположение пользователя
+  // текущее местоположение пользователя
   Point? _userLocation;
 
-  // Словарь для хранения расстояний до объектов (ключ - идентификатор объекта)
+  // словарь для хранения расстояний до объектов (ключ - идентификатор объекта)
   final _objectDistances = HashMap<String, double>();
 
-  // Флаг для отображения кнопки "Очистить фильтры"
-  bool _hasActiveFilters = false;
-
-  // Флаг для отображения кнопки refresh обновления данных (для отладки)
-  static const bool _showRefreshButton = false;
-
-  // Для хранения активных фильтров
+  // для хранения активных фильтров
   List<String> _activeTagFilters = [];
 
-  // Для отслеживания изменений видимости текста
-  bool _lastTextVisibility = false;
-
-  // Флаг показа обучающего всплывающего окна
-  bool _isFirstLaunch = false;
-  final bool _showTutorial = false;
-
-  // Красный цвет для подсветки кнопок и элементов
+  // красный цвет для подсветки кнопок и элементов
   final fm.Color _startColor =
-      const fm.Color(0xFFFC4C4C); // Стандартный красный цвет приложения
-
-  /// Добавляем поле состояния для отслеживания загрузки деталей объекта
-  bool _isLoadingDetails = false;
+      const fm.Color(0xFFFC4C4C); // стандартный красный цвет приложения
 
   int _selectedTabIndex = 2; // теперь по умолчанию "Карта"
 
