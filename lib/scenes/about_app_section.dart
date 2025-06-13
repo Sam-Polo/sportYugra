@@ -1,8 +1,31 @@
 import 'package:flutter/material.dart' as fm;
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Виджет для отображения раздела "О приложении"
-class AboutAppSection extends fm.StatelessWidget {
+class AboutAppSection extends fm.StatefulWidget {
   const AboutAppSection({super.key});
+
+  @override
+  fm.State<AboutAppSection> createState() => _AboutAppSectionState();
+}
+
+class _AboutAppSectionState extends fm.State<AboutAppSection> {
+  String _version = 'Загрузка...';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPackageInfo();
+  }
+
+  Future<void> _loadPackageInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _version = 'Версия ${packageInfo.version}';
+      });
+    }
+  }
 
   @override
   fm.Widget build(fm.BuildContext context) {
@@ -68,9 +91,9 @@ class AboutAppSection extends fm.StatelessWidget {
                           fontWeight: fm.FontWeight.bold,
                         ),
                       ),
-                      const fm.Text(
-                        'Версия 1.1.0',
-                        style: fm.TextStyle(
+                      fm.Text(
+                        _version,
+                        style: const fm.TextStyle(
                           color: fm.Colors.white70,
                           fontSize: 14,
                         ),
