@@ -2,7 +2,7 @@
 
 Учебный дипломный проект.
 Мобильное приложение на Flutter с интерактивной картой для поиска, фильтрации и просмотра спортивных объектов в Ханты-Мансийске с использованием SDK от Яндекс.Карт (yandex_maps_mapkit).
-<img src="https://github.com/user-attachments/assets/6c9e260c-069f-4694-be92-2b6fdd734c42" alt="Screenshot_204" width="10%"/>
+<img src="https://github.com/user-attachments/assets/6c9e260c-069f-4694-be92-2b6fdd734c42" alt="Screenshot_204" width="30%"/>
 
 
 ## Структура проекта
